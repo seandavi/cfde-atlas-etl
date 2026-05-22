@@ -11,8 +11,16 @@ the raw layer.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+
+
+def _empty_str_to_none(v: Any) -> Any:
+    return None if v == "" else v
+
+
+EmptyableDatetime = Annotated[datetime | None, BeforeValidator(_empty_str_to_none)]
 
 
 class IccEvalPublication(BaseModel):
@@ -27,7 +35,7 @@ class IccEvalPublication(BaseModel):
     authors: list[str] = Field(default_factory=list)
     journal: str
     year: int
-    modified: datetime | None = None
+    modified: EmptyableDatetime = None
     doi: str | None = None
     relativeCitationRatio: float | None = None
     citations: int = 0
