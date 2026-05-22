@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Local secrets — see .env.example for the expected shape.
+.env
+.env.local
+.env.*.local
