@@ -188,3 +188,114 @@ async def file_exists(owner: str, name: str, path: str, *, client: httpx.AsyncCl
         return False
     response.raise_for_status()
     return True
+
+
+README_MAX_BYTES = 256 * 1024
+
+
+async def get_readme(owner: str, name: str, *, client: httpx.AsyncClient) -> dict[str, Any] | None:
+    """Fetch + decode the canonical README. Returns None when missing or binary."""
+    import base64
+
+    response = await client.get(
+        f"{REST_BASE}/repos/{owner}/{name}/readme",
+        headers=_headers(),
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    if not response.content:
+        return None
+    payload = response.json()
+    encoded = (payload.get("content") or "").encode("ascii", errors="ignore")
+    try:
+        raw = base64.b64decode(encoded)
+    except (ValueError, TypeError):
+        return {
+            "path": payload.get("path"),
+            "sha": payload.get("sha"),
+            "content": None,
+            "truncated": False,
+        }
+    truncated = len(raw) > README_MAX_BYTES
+    if truncated:
+        raw = raw[:README_MAX_BYTES]
+    try:
+        text: str | None = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = None
+    return {
+        "path": payload.get("path"),
+        "sha": payload.get("sha"),
+        "content": text,
+        "truncated": truncated,
+    }
+
+
+async def get_community_profile(
+    owner: str, name: str, *, client: httpx.AsyncClient
+) -> dict[str, Any]:
+    """Returns GitHub's per-repo community-profile blob.
+
+    Notable fields: `files.{readme,code_of_conduct,contributing,license,issue_template,pull_request_template}`.
+    Each file entry is null when absent. Returns an empty dict on 404.
+    """
+    response = await client.get(
+        f"{REST_BASE}/repos/{owner}/{name}/community/profile",
+        headers=_headers(accept="application/vnd.github.scarlet-witch-preview+json"),
+    )
+    if response.status_code == 404:
+        return {}
+    response.raise_for_status()
+    if not response.content:
+        return {}
+    return response.json()
+
+
+async def get_citation_cff(
+    owner: str, name: str, *, client: httpx.AsyncClient
+) -> dict[str, Any] | None:
+    """Fetch + parse CITATION.cff from the default branch. Returns None when absent or unparseable."""
+    import base64
+
+    import yaml
+
+    response = await client.get(
+        f"{REST_BASE}/repos/{owner}/{name}/contents/CITATION.cff",
+        headers=_headers(),
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    if not response.content:
+        return None
+    payload = response.json()
+    encoded = (payload.get("content") or "").encode("ascii", errors="ignore")
+    try:
+        raw = base64.b64decode(encoded).decode("utf-8")
+    except (ValueError, TypeError, UnicodeDecodeError):
+        return None
+    try:
+        parsed = yaml.safe_load(raw)
+    except yaml.YAMLError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+async def get_workflow_files_count(owner: str, name: str, *, client: httpx.AsyncClient) -> int:
+    """Count files in .github/workflows/. Returns 0 when directory is absent."""
+    response = await client.get(
+        f"{REST_BASE}/repos/{owner}/{name}/contents/.github/workflows",
+        headers=_headers(),
+    )
+    if response.status_code == 404:
+        return 0
+    response.raise_for_status()
+    if not response.content:
+        return 0
+    payload = response.json()
+    if isinstance(payload, list):
+        return sum(1 for f in payload if f.get("type") == "file")
+    return 0

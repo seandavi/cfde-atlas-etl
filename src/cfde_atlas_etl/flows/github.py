@@ -24,25 +24,32 @@ from prefect.cache_policies import NO_CACHE
 
 from cfde_atlas_etl.config import get_settings
 from cfde_atlas_etl.sinks.github import (
+    update_features,
+    upsert_citation,
     upsert_commits,
     upsert_contributors,
     upsert_forks,
     upsert_issues,
     upsert_languages,
+    upsert_readme,
     upsert_releases,
     upsert_repo_core_links,
     upsert_repos,
     upsert_stars,
 )
 from cfde_atlas_etl.sources.github import (
+    get_citation_cff,
     get_commits,
+    get_community_profile,
     get_contributors,
     get_forks,
     get_issues,
     get_languages,
+    get_readme,
     get_releases,
     get_repo,
     get_stargazers,
+    get_workflow_files_count,
     search_repos,
 )
 
@@ -113,6 +120,32 @@ async def load_repo_details(
     await upsert_contributors(repo_id, contributors)
     await upsert_languages(repo_id, languages)
     await upsert_releases(repo_id, releases)
+
+    # Enrichment: README + CITATION.cff + sustainability flags.
+    # Each is best-effort; per-call failure leaves the corresponding flag NULL/false.
+    profile = await get_community_profile(owner, name, client=client)
+    files = (profile.get("files") or {}) if isinstance(profile, dict) else {}
+
+    readme_payload = await get_readme(owner, name, client=client)
+    if readme_payload is not None:
+        await upsert_readme(repo_id, readme_payload)
+
+    cff = await get_citation_cff(owner, name, client=client)
+    if cff is not None:
+        await upsert_citation(repo_id, cff)
+
+    workflow_files = await get_workflow_files_count(owner, name, client=client)
+
+    features = {
+        "has_readme": bool(files.get("readme")) or readme_payload is not None,
+        "has_security": bool(files.get("security")),
+        "has_contributing": bool(files.get("contributing")),
+        "has_coc": bool(files.get("code_of_conduct")),
+        "has_citation": cff is not None,
+        "has_funding": bool(files.get("funding")),
+        "workflow_files": workflow_files,
+    }
+    await update_features(repo_id, features)
 
     return repo_id
 
