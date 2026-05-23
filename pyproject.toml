@@ -22,8 +22,10 @@ dependencies = [
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
+    "pytest-httpx>=0.30",
     "ruff>=0.6",
-    "mypy>=1.11",
+    "pyrefly>=0.16",
+    "pre-commit>=3.7",
 ]
 
 [build-system]
@@ -42,7 +44,6 @@ ignore = ["E501"]  # line length handled by formatter
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
-[tool.mypy]
-python_version = "3.12"
-strict = true
-ignore_missing_imports = true
+[tool.pyrefly]
+project-includes = ["src", "tests"]
+python-version = "3.12"
