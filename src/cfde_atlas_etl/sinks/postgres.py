@@ -98,6 +98,21 @@ ON CONFLICT (link) DO UPDATE SET
     fetched_at = NOW();
 """
 
+UPSERT_RAW_ICITE_CITATIONS_SQL = """
+INSERT INTO raw.icite_citations (cfde_pmid, citing_pmid, fetched_at)
+VALUES (%(cfde_pmid)s, %(citing_pmid)s, NOW())
+ON CONFLICT (cfde_pmid, citing_pmid) DO UPDATE SET
+    fetched_at = NOW();
+"""
+
+UPSERT_RAW_ICITE_CITING_PUBS_SQL = """
+INSERT INTO raw.icite_citing_pubs (pmid, source, fetched_at)
+VALUES (%(pmid)s, %(source)s, NOW())
+ON CONFLICT (pmid) DO UPDATE SET
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
 
 async def _executemany(sql: LiteralString, payloads: list[dict[str, object]]) -> int:
     if not payloads:
@@ -220,3 +235,17 @@ async def upsert_raw_drc_code(sources: Iterable[DrcCodeAsset]) -> int:
         for s in sources
     ]
     return await _executemany(UPSERT_RAW_DRC_CODE_SQL, payloads)
+
+
+async def upsert_raw_icite_citations(edges: Iterable[tuple[int, int]]) -> int:
+    payloads: list[dict[str, object]] = [
+        {"cfde_pmid": cfde_pmid, "citing_pmid": citing_pmid} for cfde_pmid, citing_pmid in edges
+    ]
+    return await _executemany(UPSERT_RAW_ICITE_CITATIONS_SQL, payloads)
+
+
+async def upsert_raw_icite_citing_pubs(sources: Iterable[IcitePublication]) -> int:
+    payloads: list[dict[str, object]] = [
+        {"pmid": s.pmid, "source": json.dumps(s.model_dump(mode="json"))} for s in sources
+    ]
+    return await _executemany(UPSERT_RAW_ICITE_CITING_PUBS_SQL, payloads)
