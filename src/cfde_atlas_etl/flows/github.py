@@ -47,6 +47,10 @@ from cfde_atlas_etl.sources.github import (
 )
 
 REPO_CONCURRENCY = int(os.environ.get("CFDE_GITHUB_REPO_CONCURRENCY", "4"))
+# GitHub search API has its own rate limit independent of core REST:
+# 30 req/min authenticated, 10 req/min unauth. Serialize search calls
+# with a wall-clock gap to stay under the cap.
+SEARCH_MIN_INTERVAL = 2.1  # seconds between consecutive search calls -> ~28 req/min
 
 
 @task
@@ -128,9 +132,16 @@ async def load_github() -> int:
     logger.info("Discovering GitHub repos for %d core projects", len(core_projects))
 
     async with httpx.AsyncClient(timeout=60.0) as client:
-        discovery_results: list[tuple[str, list[dict[str, Any]]]] = await asyncio.gather(
-            *(discover_repos(c, client) for c in core_projects)
-        )
+        # Serialize discovery — GH search caps at 30 req/min auth and concurrent
+        # bursts trip 403 even with a token.
+        discovery_results: list[tuple[str, list[dict[str, Any]]]] = []
+        for i, cp in enumerate(core_projects):
+            if i > 0:
+                await asyncio.sleep(SEARCH_MIN_INTERVAL)
+            try:
+                discovery_results.append(await discover_repos(cp, client))
+            except Exception as exc:
+                logger.warning("discover_repos failed for %s: %s", cp, exc)
 
         # Group: repo_id -> (repo_dict, [core_project_numbers, ...])
         groups: dict[int, tuple[dict[str, Any], list[str]]] = {}
