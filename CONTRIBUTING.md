@@ -12,9 +12,10 @@ uv run pre-commit install
 1. Branch from `main`. Naming: `feat/<short>`, `fix/<short>`, `refactor/<short>`, `chore/<short>`.
 2. Commit early; pre-commit runs ruff lint+format on staged files.
 3. Open PR. CI runs ruff lint, ruff format check, pyrefly typecheck, pytest.
-4. GitHub Copilot code review runs automatically (repo-level setting).
-5. Wait for CI green + Copilot pass.
-6. Squash merge.
+4. Wait for CI green.
+5. Squash merge.
+
+A consolidated human/AI review pass happens after a batch of related PRs lands rather than per-PR.
 
 ## Adding a new source flow
 
