@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 import yaml
 from prefect import flow, get_run_logger, task
+from prefect.cache_policies import NO_CACHE
 
 from cfde_atlas_etl.models.ga import GaProperty, GaReport
 from cfde_atlas_etl.sinks.postgres import upsert_raw_ga_properties, upsert_raw_ga_reports
@@ -85,7 +86,7 @@ async def write_properties(records: list[GaProperty]) -> int:
     return await upsert_raw_ga_properties(records)
 
 
-@task(retries=2, retry_delay_seconds=15)
+@task(retries=2, retry_delay_seconds=15, cache_policy=NO_CACHE)
 async def fetch_property_reports(
     prop: GaProperty,
     *,
