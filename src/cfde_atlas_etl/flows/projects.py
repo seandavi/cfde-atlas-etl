@@ -1,24 +1,24 @@
 """Prefect flow: fetch NIH RePORTER projects + upsert into raw.reporter_projects.
 
-Input: opportunity numbers from raw.opportunities + manual core project list.
+Input:
+- opportunity numbers from raw.opportunities (populated by flows.opportunities,
+  which now reads config.yaml).
+- manual core_project_nums from config.yaml's `core_projects:` section
+  (those not reachable via any FOA in our curated list).
+
 Output: one row per project_num in raw.reporter_projects.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 import psycopg
-import yaml
 from prefect import flow, get_run_logger, task
 
 from cfde_atlas_etl.config import get_settings
+from cfde_atlas_etl.curated import load_core_projects
 from cfde_atlas_etl.models.project import ReporterProject
 from cfde_atlas_etl.sinks.postgres import upsert_raw_reporter_projects
 from cfde_atlas_etl.sources.reporter import search_all
-
-MANUAL_CORE_PROJECTS_PATH = Path("raw/manual-core-projects.yaml")
 
 
 @task
@@ -35,11 +35,8 @@ async def load_opportunity_numbers() -> list[str]:
 
 
 @task
-def load_manual_core_projects(path: Path = MANUAL_CORE_PROJECTS_PATH) -> list[str]:
-    if not path.exists():
-        return []
-    payload: dict[str, Any] = yaml.safe_load(path.read_text()) or {}
-    return list(payload.get("core_projects") or [])
+def read_curated_core_projects() -> list[str]:
+    return load_core_projects()
 
 
 @task(retries=3, retry_delay_seconds=15)
@@ -77,9 +74,9 @@ async def load_projects() -> int:
     logger = get_run_logger()
 
     opportunities = await load_opportunity_numbers()
-    manual_cores = load_manual_core_projects()
+    manual_cores = read_curated_core_projects()
     logger.info(
-        "Searching RePORTER with %d opportunities + %d manual core projects",
+        "Searching RePORTER with %d opportunities + %d curated core projects",
         len(opportunities),
         len(manual_cores),
     )
