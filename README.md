@@ -41,6 +41,7 @@ To add a new FOA or core project, edit `config.yaml` and open a PR. The diff is 
 | `flows.journals` | Scimago journal rank CSV + NCBI Entrez esummary | `raw.scimago_ranks` + `raw.entrez_journals` → `analytics.journals` |
 | `flows.citing_publications` | iCite cited_by + per-citing-pmid iCite lookup | `raw.icite_citations` + `raw.icite_citing_pubs` → `analytics.citing_publications` |
 | `flows.citing_grants` | RePORTER `/v2/publications/search?pmids=...` for citing pmids | `raw.reporter_citing_publications` → `analytics.citing_grants` + `analytics.citing_grants_rollup` |
+| `flows.citing_grant_details` | RePORTER `/v2/projects/search?project_nums=...` for downstream cores | `raw.reporter_citing_projects` → `analytics.citing_grant_details` + `analytics.citing_grants_full` + `analytics.citing_funding_by_*` |
 | `flows.drc` | `cfde-drc.s3.amazonaws.com` TSV manifests (dcc/file/code) | `raw.drc_*` → `analytics.drc_*` + `analytics.drc_assets` |
 | `flows.github` | GitHub REST search + per-repo detail (needs `GITHUB_TOKEN`) | `raw.github_*` → `analytics.github_repos` + `analytics.github_activity_weekly` + `analytics.github_contributors` |
 | `flows.ga` | GA4 Data API runReport per curated property (needs `GOOGLE_APPLICATION_CREDENTIALS`) | `raw.ga_properties` + `raw.ga_reports` → `analytics.ga_pageviews` + `analytics.ga_top_pages` + `analytics.ga_geo` + `analytics.ga_traffic_sources` + `analytics.ga_property_coverage` |

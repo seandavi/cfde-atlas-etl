@@ -122,6 +122,15 @@ ON CONFLICT (citing_pmid, core_project_number) DO UPDATE SET
     fetched_at = NOW();
 """
 
+UPSERT_RAW_REPORTER_CITING_PROJECTS_SQL = """
+INSERT INTO raw.reporter_citing_projects (project_num, core_project_number, source, fetched_at)
+VALUES (%(project_num)s, %(core_project_number)s, %(source)s, NOW())
+ON CONFLICT (project_num) DO UPDATE SET
+    core_project_number = EXCLUDED.core_project_number,
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
 UPSERT_RAW_GA_PROPERTIES_SQL = """
 INSERT INTO raw.ga_properties
     (property_id, display_name, hostname, core_project_number, dcc, granted_at, source, fetched_at)
@@ -284,6 +293,18 @@ async def upsert_raw_icite_citing_pubs(sources: Iterable[IcitePublication]) -> i
         {"pmid": s.pmid, "source": json.dumps(s.model_dump(mode="json"))} for s in sources
     ]
     return await _executemany(UPSERT_RAW_ICITE_CITING_PUBS_SQL, payloads)
+
+
+async def upsert_raw_reporter_citing_projects(sources: Iterable[ReporterProject]) -> int:
+    payloads: list[dict[str, object]] = [
+        {
+            "project_num": s.project_num,
+            "core_project_number": s.core_project_num,
+            "source": json.dumps(s.model_dump(mode="json")),
+        }
+        for s in sources
+    ]
+    return await _executemany(UPSERT_RAW_REPORTER_CITING_PROJECTS_SQL, payloads)
 
 
 async def upsert_raw_reporter_citing_publications(
