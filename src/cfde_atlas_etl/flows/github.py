@@ -160,12 +160,21 @@ async def load_github() -> int:
 
         async def one(repo: dict[str, Any], cps: list[str]) -> int:
             async with sem:
-                return await load_repo_details(repo, cps, client)
+                try:
+                    return await load_repo_details(repo, cps, client)
+                except Exception as exc:
+                    logger.warning(
+                        "load_repo_details failed for %s: %s",
+                        repo.get("full_name"),
+                        exc,
+                    )
+                    return 0
 
-        await asyncio.gather(*(one(r, sorted(set(cps))) for r, cps in groups.values()))
+        outcomes = await asyncio.gather(*(one(r, sorted(set(cps))) for r, cps in groups.values()))
+        ok = sum(1 for x in outcomes if x)
 
-    logger.info("GitHub flow complete: %d repos processed", len(groups))
-    return len(groups)
+    logger.info("GitHub flow complete: %d of %d repos landed", ok, len(groups))
+    return ok
 
 
 if __name__ == "__main__":
