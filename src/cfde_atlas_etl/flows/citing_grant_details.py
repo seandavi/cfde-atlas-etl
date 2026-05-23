@@ -21,7 +21,11 @@ from cfde_atlas_etl.models.project import ReporterProject
 from cfde_atlas_etl.sinks.postgres import upsert_raw_reporter_citing_projects
 from cfde_atlas_etl.sources.reporter import search_all as reporter_search_all
 
-CORE_PROJECT_CHUNK = 500
+# RePORTER /v2/projects/search returns 400 on project_nums arrays larger than
+# ~200 in practice (docs don't pin it). Stay well under.
+CORE_PROJECT_CHUNK = 100
+# 7000+ downstream cores → ~70 chunks. Cap concurrency so RePORTER doesn't 429.
+CONCURRENCY = 4
 
 
 @task
@@ -60,7 +64,13 @@ async def load_citing_grant_details() -> int:
     logger.info("Resolving project-side detail for %d downstream core projects", len(cores))
 
     chunks = [cores[i : i + CORE_PROJECT_CHUNK] for i in range(0, len(cores), CORE_PROJECT_CHUNK)]
-    results: list[list[ReporterProject]] = await asyncio.gather(*(search_chunk(c) for c in chunks))
+    sem = asyncio.Semaphore(CONCURRENCY)
+
+    async def bounded(chunk: list[str]) -> list[ReporterProject]:
+        async with sem:
+            return await search_chunk(chunk)
+
+    results: list[list[ReporterProject]] = await asyncio.gather(*(bounded(c) for c in chunks))
     flattened: list[ReporterProject] = [rec for batch in results for rec in batch]
     logger.info("Fetched %d downstream project records", len(flattened))
 
