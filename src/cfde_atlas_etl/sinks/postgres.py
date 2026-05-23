@@ -14,6 +14,7 @@ import psycopg
 
 from cfde_atlas_etl.config import get_settings
 from cfde_atlas_etl.models.drc import DrcCodeAsset, DrcDccAsset, DrcFileAsset
+from cfde_atlas_etl.models.ga import GaProperty, GaReport
 from cfde_atlas_etl.models.journal import EntrezJournal, ScimagoRank
 from cfde_atlas_etl.models.opportunity import CommonFundOpportunity
 from cfde_atlas_etl.models.project import ReporterProject
@@ -117,6 +118,32 @@ UPSERT_RAW_REPORTER_CITING_PUBLICATIONS_SQL = """
 INSERT INTO raw.reporter_citing_publications (citing_pmid, core_project_number, source, fetched_at)
 VALUES (%(citing_pmid)s, %(core_project_number)s, %(source)s, NOW())
 ON CONFLICT (citing_pmid, core_project_number) DO UPDATE SET
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
+UPSERT_RAW_GA_PROPERTIES_SQL = """
+INSERT INTO raw.ga_properties
+    (property_id, display_name, hostname, core_project_number, dcc, granted_at, source, fetched_at)
+VALUES
+    (%(property_id)s, %(display_name)s, %(hostname)s, %(core_project_number)s, %(dcc)s,
+     %(granted_at)s, %(source)s, NOW())
+ON CONFLICT (property_id) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    hostname = EXCLUDED.hostname,
+    core_project_number = EXCLUDED.core_project_number,
+    dcc = EXCLUDED.dcc,
+    granted_at = EXCLUDED.granted_at,
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
+UPSERT_RAW_GA_REPORTS_SQL = """
+INSERT INTO raw.ga_reports
+    (property_id, report_kind, period_start, period_end, source, fetched_at)
+VALUES
+    (%(property_id)s, %(report_kind)s, %(period_start)s, %(period_end)s, %(source)s, NOW())
+ON CONFLICT (property_id, report_kind, period_start, period_end) DO UPDATE SET
     source = EXCLUDED.source,
     fetched_at = NOW();
 """
@@ -274,3 +301,33 @@ async def upsert_raw_reporter_citing_publications(
             }
         )
     return await _executemany(UPSERT_RAW_REPORTER_CITING_PUBLICATIONS_SQL, payloads)
+
+
+async def upsert_raw_ga_properties(sources: Iterable[GaProperty]) -> int:
+    payloads: list[dict[str, object]] = [
+        {
+            "property_id": s.property_id,
+            "display_name": s.display_name,
+            "hostname": s.hostname,
+            "core_project_number": s.core_project_number,
+            "dcc": s.dcc,
+            "granted_at": s.granted_at,
+            "source": json.dumps(s.model_dump(mode="json")),
+        }
+        for s in sources
+    ]
+    return await _executemany(UPSERT_RAW_GA_PROPERTIES_SQL, payloads)
+
+
+async def upsert_raw_ga_reports(sources: Iterable[GaReport]) -> int:
+    payloads: list[dict[str, object]] = [
+        {
+            "property_id": s.property_id,
+            "report_kind": s.report_kind,
+            "period_start": s.period_start,
+            "period_end": s.period_end,
+            "source": json.dumps(s.response),
+        }
+        for s in sources
+    ]
+    return await _executemany(UPSERT_RAW_GA_REPORTS_SQL, payloads)
