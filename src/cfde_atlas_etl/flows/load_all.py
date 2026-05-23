@@ -27,6 +27,7 @@ from typing import Any
 
 from prefect import flow, get_run_logger
 
+from cfde_atlas_etl.flows.citing_grant_details import load_citing_grant_details
 from cfde_atlas_etl.flows.citing_grants import load_citing_grants
 from cfde_atlas_etl.flows.citing_publications import load_citing_publications
 from cfde_atlas_etl.flows.drc import load_drc
@@ -88,10 +89,15 @@ async def load_all() -> dict[str, Any]:
                 results[name] = citing_pubs
 
                 if isinstance(citing_pubs, Exception):
-                    logger.warning("citing_publications failed — skipping citing_grants")
+                    logger.warning("citing_publications failed — skipping citing_grants chain")
                 else:
                     name, cg = await _safe("citing_grants", load_citing_grants)
                     results[name] = cg
+                    if isinstance(cg, Exception):
+                        logger.warning("citing_grants failed — skipping citing_grant_details")
+                    else:
+                        name, cgd = await _safe("citing_grant_details", load_citing_grant_details)
+                        results[name] = cgd
 
                 name, j = await journals_task
                 results[name] = j
