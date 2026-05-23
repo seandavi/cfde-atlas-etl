@@ -113,6 +113,14 @@ ON CONFLICT (pmid) DO UPDATE SET
     fetched_at = NOW();
 """
 
+UPSERT_RAW_REPORTER_CITING_PUBLICATIONS_SQL = """
+INSERT INTO raw.reporter_citing_publications (citing_pmid, core_project_number, source, fetched_at)
+VALUES (%(citing_pmid)s, %(core_project_number)s, %(source)s, NOW())
+ON CONFLICT (citing_pmid, core_project_number) DO UPDATE SET
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
 
 async def _executemany(sql: LiteralString, payloads: list[dict[str, object]]) -> int:
     if not payloads:
@@ -249,3 +257,20 @@ async def upsert_raw_icite_citing_pubs(sources: Iterable[IcitePublication]) -> i
         {"pmid": s.pmid, "source": json.dumps(s.model_dump(mode="json"))} for s in sources
     ]
     return await _executemany(UPSERT_RAW_ICITE_CITING_PUBS_SQL, payloads)
+
+
+async def upsert_raw_reporter_citing_publications(
+    sources: Iterable[ReporterPublication],
+) -> int:
+    payloads: list[dict[str, object]] = []
+    for s in sources:
+        if s.coreproject is None:
+            continue
+        payloads.append(
+            {
+                "citing_pmid": s.pmid,
+                "core_project_number": s.coreproject,
+                "source": json.dumps(s.model_dump(mode="json")),
+            }
+        )
+    return await _executemany(UPSERT_RAW_REPORTER_CITING_PUBLICATIONS_SQL, payloads)
