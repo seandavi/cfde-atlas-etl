@@ -1,0 +1,7 @@
+# Manual list of NIH core project numbers to fetch from RePORTER even when
+# the opportunity-driven scrape misses them.
+#
+# Merged into the projects flow's RePORTER query alongside the opportunity_numbers
+# derived from raw.opportunities. Dedupe is by project_num at the upsert layer.
+
+core_projects: []
