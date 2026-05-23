@@ -19,6 +19,7 @@ dependencies = [
     "selectolax>=0.3.21",
     "pypdf>=4.3",
     "pyyaml>=6.0",
+    "google-auth>=2.30",
 ]
 
 [project.optional-dependencies]

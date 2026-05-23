@@ -1,0 +1,15 @@
+# GA4 property -> CFDE core_project_number crosswalk.
+#
+# Each DCC must grant our service account Viewer access on their GA4 property
+# before its data can be ingested. List approved properties here.
+#
+# Copy this file to raw/manual-ga-properties.yaml (gitignored on real envs)
+# and fill in the entries.
+
+properties:
+  - property_id: "123456789"      # GA4 property numeric id
+    display_name: "GTEx Portal"
+    hostname: "gtexportal.org"
+    core_project_number: "U54OD036472"
+    dcc: "GTEx"
+    granted_at: "2026-01-15"      # date access was granted
