@@ -31,6 +31,13 @@ src/cfde_atlas_etl/
 | `flows.opportunities` | commonfund.nih.gov scrape + `raw/manual-opportunities.yaml` | `raw.opportunities` → `analytics.opportunities` |
 | `flows.projects` | NIH RePORTER `/v2/projects/search` | `raw.reporter_projects` → `analytics.projects` + `analytics.core_projects` |
 | `flows.publications` | NIH RePORTER `/v2/publications/search` + iCite `/api/pubs` | `raw.reporter_publications` + `raw.icite` → `analytics.publications` |
+| `flows.journals` | Scimago journal rank CSV + NCBI Entrez esummary | `raw.scimago_ranks` + `raw.entrez_journals` → `analytics.journals` |
+| `flows.citing_publications` | iCite cited_by + per-citing-pmid iCite lookup | `raw.icite_citations` + `raw.icite_citing_pubs` → `analytics.citing_publications` |
+| `flows.citing_grants` | RePORTER `/v2/publications/search?pmids=...` for citing pmids | `raw.reporter_citing_publications` → `analytics.citing_grants` + `analytics.citing_grants_rollup` |
+| `flows.drc` | `cfde-drc.s3.amazonaws.com` TSV manifests (dcc/file/code) | `raw.drc_*` → `analytics.drc_*` + `analytics.drc_assets` |
+| `flows.github` | GitHub REST search + per-repo detail (needs `GITHUB_TOKEN`) | `raw.github_*` → `analytics.github_repos` + `analytics.github_activity_weekly` + `analytics.github_contributors` |
+| `flows.ga` | GA4 Data API runReport per curated property (needs `GOOGLE_APPLICATION_CREDENTIALS`) | `raw.ga_properties` + `raw.ga_reports` → `analytics.ga_pageviews` + `analytics.ga_top_pages` + `analytics.ga_geo` + `analytics.ga_traffic_sources` + `analytics.ga_property_coverage` |
+| `flows.load_all` | Orchestrates everything above in dep order with safe per-flow isolation | — |
 
 The publications source acknowledges multiple grants per paper, so the raw key in `raw.reporter_publications` is `(pmid, core_project_number)`. The analytics view JOINs `raw.icite` onto it for title/journal/RCR/citation enrichment.
 
@@ -52,6 +59,11 @@ Until a long-running Prefect server exists (filed as [#5](https://github.com/sea
 
 ```bash
 export PREFECT_API_URL= PREFECT_SERVER_ALLOW_EPHEMERAL_MODE=true
+
+# Run everything in dep order (recommended):
+uv run python -m cfde_atlas_etl.flows.load_all
+
+# Or run a single flow:
 uv run python -m cfde_atlas_etl.flows.opportunities
 uv run python -m cfde_atlas_etl.flows.projects
 uv run python -m cfde_atlas_etl.flows.publications
