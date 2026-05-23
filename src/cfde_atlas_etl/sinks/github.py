@@ -100,6 +100,33 @@ ON CONFLICT (repo_id, tag_name) DO UPDATE SET
     fetched_at = NOW();
 """
 
+UPSERT_README = """
+INSERT INTO raw.github_readmes (repo_id, path, sha, content, truncated, fetched_at)
+VALUES (%(repo_id)s, %(path)s, %(sha)s, %(content)s, %(truncated)s, NOW())
+ON CONFLICT (repo_id) DO UPDATE SET
+    path = EXCLUDED.path,
+    sha = EXCLUDED.sha,
+    content = EXCLUDED.content,
+    truncated = EXCLUDED.truncated,
+    fetched_at = NOW();
+"""
+
+UPSERT_CITATION = """
+INSERT INTO raw.github_citations (repo_id, source, doi, pmid, fetched_at)
+VALUES (%(repo_id)s, %(source)s, %(doi)s, %(pmid)s, NOW())
+ON CONFLICT (repo_id) DO UPDATE SET
+    source = EXCLUDED.source,
+    doi = EXCLUDED.doi,
+    pmid = EXCLUDED.pmid,
+    fetched_at = NOW();
+"""
+
+UPDATE_FEATURES = """
+UPDATE raw.github_repos
+SET features = %(features)s
+WHERE repo_id = %(repo_id)s;
+"""
+
 
 def _dump(record: dict[str, Any]) -> str:
     return json.dumps(record)
@@ -218,6 +245,79 @@ async def upsert_languages(repo_id: int, languages: dict[str, int]) -> int:
         {"repo_id": repo_id, "language": lang, "bytes": byts} for lang, byts in languages.items()
     ]
     return await _executemany(UPSERT_LANGUAGES, payloads)
+
+
+async def upsert_readme(repo_id: int, payload: dict[str, Any]) -> int:
+    return await _executemany(
+        UPSERT_README,
+        [
+            {
+                "repo_id": repo_id,
+                "path": payload.get("path"),
+                "sha": payload.get("sha"),
+                "content": payload.get("content"),
+                "truncated": bool(payload.get("truncated", False)),
+            }
+        ],
+    )
+
+
+async def upsert_citation(repo_id: int, parsed: dict[str, Any]) -> int:
+    doi = _extract_doi(parsed)
+    pmid = _extract_pmid(parsed)
+    return await _executemany(
+        UPSERT_CITATION,
+        [
+            {
+                "repo_id": repo_id,
+                "source": json.dumps(parsed),
+                "doi": doi,
+                "pmid": pmid,
+            }
+        ],
+    )
+
+
+async def update_features(repo_id: int, features: dict[str, Any]) -> int:
+    return await _executemany(
+        UPDATE_FEATURES,
+        [{"repo_id": repo_id, "features": json.dumps(features)}],
+    )
+
+
+def _extract_doi(cff: dict[str, Any]) -> str | None:
+    """Pull DOI from preferred-citation.doi, then from identifiers[type=doi]."""
+    pc = cff.get("preferred-citation") or {}
+    if isinstance(pc, dict):
+        doi = pc.get("doi")
+        if isinstance(doi, str) and doi.strip():
+            return doi.strip()
+    for ident in cff.get("identifiers") or []:
+        if isinstance(ident, dict) and ident.get("type") == "doi":
+            v = ident.get("value")
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+    top_doi = cff.get("doi")
+    return top_doi.strip() if isinstance(top_doi, str) and top_doi.strip() else None
+
+
+def _extract_pmid(cff: dict[str, Any]) -> int | None:
+    """Pull PMID from preferred-citation or identifiers[type=pmid]."""
+    pc = cff.get("preferred-citation") or {}
+    if isinstance(pc, dict):
+        v = pc.get("pmid")
+        try:
+            if v is not None:
+                return int(str(v).strip())
+        except (TypeError, ValueError):
+            pass
+    for ident in cff.get("identifiers") or []:
+        if isinstance(ident, dict) and (ident.get("type") or "").lower() in {"pmid", "pubmed"}:
+            try:
+                return int(str(ident.get("value")).strip())
+            except (TypeError, ValueError):
+                continue
+    return None
 
 
 async def upsert_releases(repo_id: int, records: Iterable[dict[str, Any]]) -> int:
