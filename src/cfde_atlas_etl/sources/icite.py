@@ -14,7 +14,9 @@ from typing import Any
 import httpx
 
 ENDPOINT = "https://icite.od.nih.gov/api/pubs"
-CHUNK_SIZE = 1000
+# 200 pmids * ~8 chars + commas + URL-encoding leaves us well under the ~8KB
+# request URI cap; iCite documents 1000 but a GET with that many pmids 414s.
+CHUNK_SIZE = 200
 
 
 def _chunked(items: list[int], n: int) -> Iterable[list[int]]:
