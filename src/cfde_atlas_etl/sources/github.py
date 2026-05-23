@@ -62,6 +62,11 @@ async def _paginate(
     while next_url:
         response = await client.get(next_url, params=next_params, headers=_headers(accept=accept))
         response.raise_for_status()
+        # GitHub returns 204 No Content (empty body) for endpoints like
+        # /contributors when the repo has no recorded contributors. Treat as
+        # empty iteration rather than letting json() raise.
+        if response.status_code == 204 or not response.content:
+            return
         payload = response.json()
         items = payload if isinstance(payload, list) else payload.get("items") or []
         for item in items:
@@ -85,6 +90,8 @@ async def search_repos(query: str, *, client: httpx.AsyncClient) -> list[dict[st
 async def get_repo(owner: str, name: str, *, client: httpx.AsyncClient) -> dict[str, Any]:
     response = await client.get(f"{REST_BASE}/repos/{owner}/{name}", headers=_headers())
     response.raise_for_status()
+    if not response.content:
+        return {}
     return response.json()
 
 
@@ -156,6 +163,8 @@ async def get_languages(owner: str, name: str, *, client: httpx.AsyncClient) -> 
         headers=_headers(),
     )
     response.raise_for_status()
+    if not response.content:
+        return {}
     return response.json()
 
 
