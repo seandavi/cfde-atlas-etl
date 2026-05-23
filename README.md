@@ -28,9 +28,11 @@ src/cfde_atlas_etl/
 
 | Flow | Source | Target |
 |---|---|---|
-| `flows.publications` | `nih-cfde/icc-eval-core` `publications.json` | `raw.publications` → `analytics.publications` |
+| `flows.opportunities` | commonfund.nih.gov scrape + `raw/manual-opportunities.yaml` | `raw.opportunities` → `analytics.opportunities` |
+| `flows.projects` | NIH RePORTER `/v2/projects/search` | `raw.reporter_projects` → `analytics.projects` + `analytics.core_projects` |
+| `flows.publications` | NIH RePORTER `/v2/publications/search` + iCite `/api/pubs` | `raw.reporter_publications` + `raw.icite` → `analytics.publications` |
 
-The publications source can acknowledge multiple grants per paper, so the raw key is `(pmid, core_project_number)`.
+The publications source acknowledges multiple grants per paper, so the raw key in `raw.reporter_publications` is `(pmid, core_project_number)`. The analytics view JOINs `raw.icite` onto it for title/journal/RCR/citation enrichment.
 
 ## Setup
 
@@ -39,8 +41,7 @@ Requires `uv`, `psql`, and a reachable Postgres.
 ```bash
 uv sync --extra dev
 cp .env.example .env   # then fill in DATABASE_URL
-psql "$DATABASE_URL" -f migrations/0001_create_raw_publications.sql
-psql "$DATABASE_URL" -f migrations/0002_create_analytics_publications.sql
+for f in migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 ```
 
 For the onclappc02 dev environment, the password lives in GSM (project `cdsci-infra`, secret `cfde-atlas-dev-db-password-onclappc02`) — see `.env.example` for the snippet.
@@ -51,6 +52,8 @@ Until a long-running Prefect server exists (filed as [#5](https://github.com/sea
 
 ```bash
 export PREFECT_API_URL= PREFECT_SERVER_ALLOW_EPHEMERAL_MODE=true
+uv run python -m cfde_atlas_etl.flows.opportunities
+uv run python -m cfde_atlas_etl.flows.projects
 uv run python -m cfde_atlas_etl.flows.publications
 ```
 
