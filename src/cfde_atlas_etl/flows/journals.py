@@ -20,7 +20,9 @@ from cfde_atlas_etl.sinks.postgres import upsert_raw_entrez_journals, upsert_raw
 from cfde_atlas_etl.sources.entrez import lookup_journal
 from cfde_atlas_etl.sources.scimago import fetch as fetch_scimago
 
-NCBI_CONCURRENCY = 10 if os.environ.get("NCBI_API_KEY") else 3
+# NCBI Entrez rate limits: 3 req/s wall-clock without API key, 10 req/s with one.
+# Conservative inter-request sleep (seconds) to stay under the cap.
+NCBI_MIN_INTERVAL = 0.11 if os.environ.get("NCBI_API_KEY") else 0.4
 
 
 @task
@@ -59,18 +61,30 @@ async def fetch_scimago_ranks() -> list[ScimagoRank]:
 
 @task(retries=3, retry_delay_seconds=10)
 async def fetch_entrez_journals(abbrevs: list[str]) -> list[EntrezJournal]:
+    """Serial fetch with wall-clock rate limiting.
+
+    NCBI's 3 req/s (10 w/ API key) is a wall-clock cap, not a concurrency cap,
+    so even with sem=1 a fast LAN burst trips 429. Serialize + sleep between
+    calls. Per-abbrev errors fall back to {abbrev, abbrev, ""} so one bad
+    lookup does not abort the whole task.
+    """
+    logger = get_run_logger()
     if not abbrevs:
         return []
-    sem = asyncio.Semaphore(NCBI_CONCURRENCY)
-
+    out: list[EntrezJournal] = []
     async with httpx.AsyncClient(timeout=30.0) as client:
-
-        async def one(abbrev: str) -> EntrezJournal:
-            async with sem:
+        for i, abbrev in enumerate(abbrevs):
+            if i > 0:
+                await asyncio.sleep(NCBI_MIN_INTERVAL)
+            try:
                 payload = await lookup_journal(abbrev, client=client)
-                return EntrezJournal.model_validate(payload)
-
-        return await asyncio.gather(*(one(a) for a in abbrevs))
+            except httpx.HTTPError as exc:
+                logger.warning(
+                    "Entrez lookup failed for %r: %s — using abbrev as name", abbrev, exc
+                )
+                payload = {"abbrev": abbrev, "name": abbrev, "issn": ""}
+            out.append(EntrezJournal.model_validate(payload))
+    return out
 
 
 @task
