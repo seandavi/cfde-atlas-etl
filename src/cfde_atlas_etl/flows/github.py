@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 import psycopg
 from prefect import flow, get_run_logger, task
+from prefect.cache_policies import NO_CACHE
 
 from cfde_atlas_etl.config import get_settings
 from cfde_atlas_etl.sinks.github import (
@@ -64,7 +65,7 @@ async def load_core_project_numbers() -> list[str]:
     return [r[0] for r in rows]
 
 
-@task(retries=3, retry_delay_seconds=30)
+@task(retries=3, retry_delay_seconds=30, cache_policy=NO_CACHE)
 async def discover_repos(
     core_project_number: str,
     client: httpx.AsyncClient,
@@ -73,7 +74,7 @@ async def discover_repos(
     return core_project_number, hits
 
 
-@task(retries=3, retry_delay_seconds=30)
+@task(retries=3, retry_delay_seconds=30, cache_policy=NO_CACHE)
 async def load_repo_details(
     repo: dict[str, Any],
     discovered_under: list[str],
@@ -117,9 +118,11 @@ async def load_github() -> int:
     logger = get_run_logger()
     if not os.environ.get("GITHUB_TOKEN"):
         logger.warning(
-            "GITHUB_TOKEN not set — unauthenticated requests are rate-limited to 60/hr "
-            "and the flow will likely fail. Proceeding anyway."
+            "GITHUB_TOKEN not set — skipping the GitHub flow entirely. "
+            "Unauthenticated GH search is capped at 60 req/hr; running this flow "
+            "without a token just burns retry budget without producing rows."
         )
+        return 0
 
     core_projects = await load_core_project_numbers()
     logger.info("Discovering GitHub repos for %d core projects", len(core_projects))

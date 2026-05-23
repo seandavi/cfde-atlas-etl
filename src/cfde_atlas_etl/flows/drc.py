@@ -9,6 +9,7 @@ import asyncio
 
 import httpx
 from prefect import flow, get_run_logger, task
+from prefect.cache_policies import NO_CACHE
 
 from cfde_atlas_etl.models.drc import DrcCodeAsset, DrcDccAsset, DrcFileAsset
 from cfde_atlas_etl.sinks.postgres import (
@@ -19,21 +20,21 @@ from cfde_atlas_etl.sinks.postgres import (
 from cfde_atlas_etl.sources.drc import fetch as fetch_drc
 
 
-@task(retries=2, retry_delay_seconds=30)
+@task(retries=2, retry_delay_seconds=30, cache_policy=NO_CACHE)
 async def load_dcc_assets(client: httpx.AsyncClient) -> int:
     rows = await fetch_drc("dcc", client=client)
     records = [DrcDccAsset.model_validate(r) for r in rows if r.get("link")]
     return await upsert_raw_drc_dcc(records)
 
 
-@task(retries=2, retry_delay_seconds=30)
+@task(retries=2, retry_delay_seconds=30, cache_policy=NO_CACHE)
 async def load_file_assets(client: httpx.AsyncClient) -> int:
     rows = await fetch_drc("file", client=client)
     records = [DrcFileAsset.model_validate(r) for r in rows if r.get("link")]
     return await upsert_raw_drc_file(records)
 
 
-@task(retries=2, retry_delay_seconds=30)
+@task(retries=2, retry_delay_seconds=30, cache_policy=NO_CACHE)
 async def load_code_assets(client: httpx.AsyncClient) -> int:
     rows = await fetch_drc("code", client=client)
     records = [DrcCodeAsset.model_validate(r) for r in rows if r.get("link")]
