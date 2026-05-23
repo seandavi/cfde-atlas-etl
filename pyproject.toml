@@ -16,8 +16,6 @@ dependencies = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "python-dotenv>=1.0",
-    "selectolax>=0.3.21",
-    "pypdf>=4.3",
     "pyyaml>=6.0",
     "google-auth>=2.30",
 ]

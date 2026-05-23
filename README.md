@@ -15,21 +15,28 @@ Architectural decisions live in [`seandavi/cfde-atlas#15`](https://github.com/se
 ## Layout
 
 ```
+config.yaml                       — PR-curated FOAs + manual core projects (single source of truth)
 migrations/                       — numbered SQL migrations, applied with psql for now
 src/cfde_atlas_etl/
+  curated.py                      — loader for config.yaml
   flows/                          — Prefect flow entrypoints, one per source
-  sources/                        — async fetchers (icc-eval-core, etc.)
+  sources/                        — async fetchers (RePORTER, iCite, Entrez, GA, GitHub, DRC, …)
   models/                         — pydantic source-schema guards
-  transform/                      — flow-local transforms (kept thin; prefer SQL views)
-  sinks/postgres.py               — upserts into raw.* tables
+  sinks/                          — Postgres upserts into raw.* tables
 ```
+
+## `config.yaml`
+
+The set of CFDE FOAs (RFA / NOT / OTA) and any orphan core projects not reachable via those FOAs is **curated by PR**, not scraped. See [#33](https://github.com/seandavi/cfde-atlas-etl/issues/33) for the decision record.
+
+To add a new FOA or core project, edit `config.yaml` and open a PR. The diff is the audit trail.
 
 ## Current flows
 
 | Flow | Source | Target |
 |---|---|---|
-| `flows.opportunities` | commonfund.nih.gov scrape + `raw/manual-opportunities.yaml` | `raw.opportunities` → `analytics.opportunities` |
-| `flows.projects` | NIH RePORTER `/v2/projects/search` | `raw.reporter_projects` → `analytics.projects` + `analytics.core_projects` |
+| `flows.opportunities` | PR-curated `config.yaml` (`opportunities:`) | `raw.opportunities` → `analytics.opportunities` |
+| `flows.projects` | NIH RePORTER `/v2/projects/search` (opportunities from `raw.opportunities` + manual `core_projects:` from `config.yaml`) | `raw.reporter_projects` → `analytics.projects` + `analytics.core_projects` |
 | `flows.publications` | NIH RePORTER `/v2/publications/search` + iCite `/api/pubs` | `raw.reporter_publications` + `raw.icite` → `analytics.publications` |
 | `flows.journals` | Scimago journal rank CSV + NCBI Entrez esummary | `raw.scimago_ranks` + `raw.entrez_journals` → `analytics.journals` |
 | `flows.citing_publications` | iCite cited_by + per-citing-pmid iCite lookup | `raw.icite_citations` + `raw.icite_citing_pubs` → `analytics.citing_publications` |
