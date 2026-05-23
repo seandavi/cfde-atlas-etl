@@ -13,6 +13,7 @@ from typing import LiteralString
 import psycopg
 
 from cfde_atlas_etl.config import get_settings
+from cfde_atlas_etl.models.journal import EntrezJournal, ScimagoRank
 from cfde_atlas_etl.models.opportunity import CommonFundOpportunity
 from cfde_atlas_etl.models.project import ReporterProject
 from cfde_atlas_etl.models.publication import IcitePublication, ReporterPublication
@@ -46,6 +47,24 @@ UPSERT_RAW_ICITE_SQL = """
 INSERT INTO raw.icite (pmid, source, fetched_at)
 VALUES (%(pmid)s, %(source)s, NOW())
 ON CONFLICT (pmid) DO UPDATE SET
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
+UPSERT_RAW_SCIMAGO_RANKS_SQL = """
+INSERT INTO raw.scimago_ranks (sourceid, issns, source, fetched_at)
+VALUES (%(sourceid)s, %(issns)s, %(source)s, NOW())
+ON CONFLICT (sourceid) DO UPDATE SET
+    issns = EXCLUDED.issns,
+    source = EXCLUDED.source,
+    fetched_at = NOW();
+"""
+
+UPSERT_RAW_ENTREZ_JOURNALS_SQL = """
+INSERT INTO raw.entrez_journals (abbrev, issn, source, fetched_at)
+VALUES (%(abbrev)s, %(issn)s, %(source)s, NOW())
+ON CONFLICT (abbrev) DO UPDATE SET
+    issn = EXCLUDED.issn,
     source = EXCLUDED.source,
     fetched_at = NOW();
 """
@@ -105,3 +124,27 @@ async def upsert_raw_icite(sources: Iterable[IcitePublication]) -> int:
         {"pmid": s.pmid, "source": json.dumps(s.model_dump(mode="json"))} for s in sources
     ]
     return await _executemany(UPSERT_RAW_ICITE_SQL, payloads)
+
+
+async def upsert_raw_scimago_ranks(sources: Iterable[ScimagoRank]) -> int:
+    payloads: list[dict[str, object]] = [
+        {
+            "sourceid": s.Sourceid,
+            "issns": s.issns,
+            "source": json.dumps(s.model_dump(mode="json")),
+        }
+        for s in sources
+    ]
+    return await _executemany(UPSERT_RAW_SCIMAGO_RANKS_SQL, payloads)
+
+
+async def upsert_raw_entrez_journals(sources: Iterable[EntrezJournal]) -> int:
+    payloads: list[dict[str, object]] = [
+        {
+            "abbrev": s.abbrev,
+            "issn": s.issn,
+            "source": json.dumps(s.model_dump(mode="json")),
+        }
+        for s in sources
+    ]
+    return await _executemany(UPSERT_RAW_ENTREZ_JOURNALS_SQL, payloads)
