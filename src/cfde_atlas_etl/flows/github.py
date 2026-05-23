@@ -38,6 +38,7 @@ from cfde_atlas_etl.sinks.github import (
     upsert_stars,
 )
 from cfde_atlas_etl.sources.github import (
+    file_exists,
     get_citation_cff,
     get_commits,
     get_community_profile,
@@ -136,13 +137,17 @@ async def load_repo_details(
 
     workflow_files = await get_workflow_files_count(owner, name, client=client)
 
+    # community/profile does not surface SECURITY / FUNDING — check directly.
+    has_security = await file_exists(owner, name, "SECURITY.md", client=client)
+    has_funding = await file_exists(owner, name, ".github/FUNDING.yml", client=client)
+
     features = {
         "has_readme": bool(files.get("readme")) or readme_payload is not None,
-        "has_security": bool(files.get("security")),
+        "has_security": has_security,
         "has_contributing": bool(files.get("contributing")),
         "has_coc": bool(files.get("code_of_conduct")),
         "has_citation": cff is not None,
-        "has_funding": bool(files.get("funding")),
+        "has_funding": has_funding,
         "workflow_files": workflow_files,
     }
     await update_features(repo_id, features)
