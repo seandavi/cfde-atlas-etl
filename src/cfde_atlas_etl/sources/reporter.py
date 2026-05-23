@@ -14,7 +14,9 @@ import httpx
 
 BASE_URL = "https://api.reporter.nih.gov/v2"
 PAGE_SIZE = 500
-HARD_PAGE_LIMIT = 50  # safety cap; v2 hard-limits offset+limit < 14_999
+# RePORTER v2 hard-limits offset+limit < 14_999. That gives a max of ~29 pages
+# at 500 each; cap at 28 to stay safely under the hard limit.
+HARD_PAGE_LIMIT = 28
 
 Endpoint = Literal["projects", "publications"]
 
@@ -47,6 +49,10 @@ async def search(
                 json=body,
                 headers={"Accept": "application/json", "Content-Type": "application/json"},
             )
+            # RePORTER returns 400 once offset+limit crosses its 14_999 hard cap.
+            # Stop paginating instead of failing the whole search.
+            if response.status_code == 400 and offset > 0:
+                return
             response.raise_for_status()
             payload = response.json()
             results: list[dict[str, Any]] = payload.get("results") or []
