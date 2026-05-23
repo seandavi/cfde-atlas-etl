@@ -104,10 +104,27 @@ async def load_journals() -> tuple[int, int]:
     abbrevs = await load_journal_abbreviations()
     logger.info("Resolving %d distinct journal abbreviations from raw.icite", len(abbrevs))
 
-    scimago, entrez = await asyncio.gather(
+    # Scimago + Entrez are independent; a Scimago 403 (their bot detection
+    # bans CI IPs) must not lose the (more expensive) Entrez side.
+    results = await asyncio.gather(
         fetch_scimago_ranks(),
         fetch_entrez_journals(abbrevs),
+        return_exceptions=True,
     )
+    scimago_result, entrez_result = results
+
+    if isinstance(scimago_result, BaseException):
+        logger.warning("Scimago fetch failed (%s) — skipping rank update", scimago_result)
+        scimago: list[ScimagoRank] = []
+    else:
+        scimago = scimago_result
+
+    if isinstance(entrez_result, BaseException):
+        logger.warning("Entrez fetch failed (%s) — skipping journal name update", entrez_result)
+        entrez: list[EntrezJournal] = []
+    else:
+        entrez = entrez_result
+
     logger.info("Fetched %d Scimago rows + %d Entrez rows", len(scimago), len(entrez))
 
     written_scimago = await write_scimago(scimago)

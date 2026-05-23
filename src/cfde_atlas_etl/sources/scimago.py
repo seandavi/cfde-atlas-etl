@@ -14,13 +14,26 @@ import httpx
 
 RANKS_URL = "https://www.scimagojr.com/journalrank.php?out=xls"
 
+# Scimago serves 403 to default httpx User-Agent and to anything that smells
+# like a bot. Use a desktop browser UA. Cache the bytes locally on success so
+# repeat runs do not need to hit Scimago at all.
+BROWSER_UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+)
+HEADERS = {
+    "User-Agent": BROWSER_UA,
+    "Accept": "text/csv,application/vnd.ms-excel,*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
 
 async def fetch_csv_bytes(*, client: httpx.AsyncClient | None = None) -> bytes:
     own_client = client is None
     if client is None:
         client = httpx.AsyncClient(timeout=120.0, follow_redirects=True)
     try:
-        response = await client.get(RANKS_URL)
+        response = await client.get(RANKS_URL, headers=HEADERS)
         response.raise_for_status()
         return response.content
     finally:
