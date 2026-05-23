@@ -21,10 +21,12 @@ from cfde_atlas_etl.models.project import ReporterProject
 from cfde_atlas_etl.sinks.postgres import upsert_raw_reporter_citing_projects
 from cfde_atlas_etl.sources.reporter import search_all as reporter_search_all
 
-# RePORTER /v2/projects/search returns 400 on project_nums arrays larger than
-# ~200 in practice (docs don't pin it). Stay well under.
-CORE_PROJECT_CHUNK = 100
-# 7000+ downstream cores → ~70 chunks. Cap concurrency so RePORTER doesn't 429.
+# RePORTER /v2/projects/search has a hard pagination ceiling of offset+limit < 14_999.
+# Each core_project_number can expand to many project_nums across fiscal years; large
+# chunks blow past that ceiling and 400. Keep chunks small enough that the per-chunk
+# total stays under the ceiling for popular center-grant cores.
+CORE_PROJECT_CHUNK = 25
+# 7000+ downstream cores -> ~280 chunks; cap concurrency so RePORTER doesn't 429.
 CONCURRENCY = 4
 
 
