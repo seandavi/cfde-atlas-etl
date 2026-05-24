@@ -37,6 +37,8 @@ from cfde_atlas_etl.sources.c2m2 import (
     C2M2_TABLES,
     C2M2_TABLES_BY_TSV,
     download_bundle,
+    filter_and_dedupe,
+    is_junk_bundle,
     iter_bundle_rows,
     open_bundle,
     parse_submission_date_from_url,
@@ -72,6 +74,8 @@ async def discover_latest_bundles() -> list[dict[str, Any]]:
         path_match = DCC_PATH_RE.search(link)
         date = parse_submission_date_from_url(link)
         if not path_match or not date:
+            continue
+        if is_junk_bundle(link):
             continue
         grouped[path_match.group(1)].append((date, link, size_bytes))
 
@@ -138,12 +142,22 @@ async def ingest_bundle(bundle: dict[str, Any], client: httpx.AsyncClient) -> di
                 if table.tsv_name == "dcc":
                     continue
                 await reset_bundle_rows(table=table, dcc_id=dcc_id, submission_date=submission_date)
-                rows = list(iter_bundle_rows(zf, table))
-                if not rows:
+                raw_rows = list(iter_bundle_rows(zf, table))
+                if not raw_rows:
+                    continue
+                filtered, dropped_null, _ = filter_and_dedupe(table, raw_rows)
+                if dropped_null:
+                    logger.warning(
+                        "Bundle %s table %s: dropped %d rows with NULL in PK columns",
+                        dcc_id,
+                        table.tsv_name,
+                        dropped_null,
+                    )
+                if not filtered:
                     continue
                 inserted = await copy_rows_into(
                     table=table,
-                    rows=rows,
+                    rows=filtered,
                     dcc_id=dcc_id,
                     submission_date=submission_date,
                 )
