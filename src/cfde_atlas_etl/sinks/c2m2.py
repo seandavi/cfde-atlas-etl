@@ -155,40 +155,52 @@ async def reset_bundle_rows(
 async def copy_rows_into(
     *,
     table: C2M2Table,
-    rows: Iterable[tuple[Any, ...]],
+    rows: list[tuple[Any, ...]],
     dcc_id: str,
     submission_date: dt.date,
 ) -> int:
-    """Stream rows into the target table using psycopg COPY.
+    """Insert rows into the target table via a temp staging table + ON CONFLICT DO NOTHING.
 
-    Appends `dcc_id` + `submission_date` to every row. For ontology tables we
-    UPSERT one-by-one (executemany) because COPY into a table with PK conflicts
-    is awkward; ontology rows are small (hundreds) and the table is shared
-    across DCCs. For all others we COPY.
+    Direct COPY-into-target trips PK constraints when:
+      (a) different DCCs reuse the same natural-key strings (e.g. project namespaces)
+      (b) within a single TSV the same natural key appears twice
+    Solution: COPY into an unlogged temp table, then INSERT … SELECT … ON CONFLICT DO NOTHING
+    so duplicates silently drop. Caller pre-filters NULL-PK rows + in-batch duplicates.
+
+    Ontology tables route through `_upsert_ontology` instead (DO UPDATE keeps the
+    richest description across DCCs).
     """
-    settings = get_settings()
-    target_cols = (*table.columns, "dcc_id", "submission_date")
-
     if table.kind == "ontology":
         return await _upsert_ontology(table, rows, dcc_id, submission_date)
 
-    inserted = 0
-    schema, name = table.table.split(".", 1)
-    cols_sql = sql.SQL(", ").join(sql.Identifier(c) for c in target_cols)
-    stmt = sql.SQL("COPY {tbl} ({cols}) FROM STDIN").format(
-        tbl=sql.Identifier(schema, name),
-        cols=cols_sql,
-    )
+    if not rows:
+        return 0
 
-    async with (
-        await psycopg.AsyncConnection.connect(settings.database_url) as conn,
-        conn.cursor() as cur,
-    ):
-        async with cur.copy(stmt) as cp:
-            for row in rows:
-                augmented = (*row, dcc_id, submission_date)
-                await cp.write_row(augmented)
-                inserted += 1
+    settings = get_settings()
+    schema, name = table.table.split(".", 1)
+    target_cols = (*table.columns, "dcc_id", "submission_date")
+    cols_sql = sql.SQL(", ").join(sql.Identifier(c) for c in target_cols)
+    target_ident = sql.Identifier(schema, name)
+    staging_ident = sql.Identifier(f"stg_{name}")
+
+    create_stage = sql.SQL(
+        "CREATE TEMP TABLE {stage} (LIKE {tbl} INCLUDING DEFAULTS) ON COMMIT DROP"
+    ).format(stage=staging_ident, tbl=target_ident)
+    copy_stage = sql.SQL("COPY {stage} ({cols}) FROM STDIN").format(
+        stage=staging_ident, cols=cols_sql
+    )
+    insert_from_stage = sql.SQL(
+        "INSERT INTO {tbl} ({cols}) SELECT {cols} FROM {stage} ON CONFLICT DO NOTHING"
+    ).format(tbl=target_ident, cols=cols_sql, stage=staging_ident)
+
+    async with await psycopg.AsyncConnection.connect(settings.database_url) as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(create_stage)
+            async with cur.copy(copy_stage) as cp:
+                for row in rows:
+                    await cp.write_row((*row, dcc_id, submission_date))
+            await cur.execute(insert_from_stage)
+            inserted = cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else len(rows)
         await conn.commit()
     return inserted
 
