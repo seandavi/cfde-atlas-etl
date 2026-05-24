@@ -27,6 +27,7 @@ from typing import Any
 
 from prefect import flow, get_run_logger
 
+from cfde_atlas_etl.flows.c2m2 import load_c2m2
 from cfde_atlas_etl.flows.citing_grant_details import load_citing_grant_details
 from cfde_atlas_etl.flows.citing_grants import load_citing_grants
 from cfde_atlas_etl.flows.citing_publications import load_citing_publications
@@ -57,6 +58,7 @@ async def load_all() -> dict[str, Any]:
     # Independent branches start immediately.
     drc_task = asyncio.create_task(_safe("drc", load_drc))
     ga_task = asyncio.create_task(_safe("ga", load_ga))
+    # c2m2 depends on drc (needs raw.drc_file populated). Schedule it after drc completes.
 
     # Main dependency chain.
     name, opps = await _safe("opportunities", load_opportunities)
@@ -109,6 +111,13 @@ async def load_all() -> dict[str, Any]:
     results[name] = drc
     name, ga = await ga_task
     results[name] = ga
+
+    # c2m2 needs raw.drc_file populated — chain it after drc finishes.
+    if isinstance(drc, Exception):
+        logger.warning("drc failed — skipping c2m2 ingest")
+    else:
+        name, c2m2 = await _safe("c2m2", load_c2m2)
+        results[name] = c2m2
 
     summary = {
         k: ("ok" if not isinstance(v, Exception) else f"failed: {type(v).__name__}")
