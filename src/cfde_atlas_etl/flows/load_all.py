@@ -38,6 +38,7 @@ from cfde_atlas_etl.flows.journals import load_journals
 from cfde_atlas_etl.flows.opportunities import load_opportunities
 from cfde_atlas_etl.flows.projects import load_projects
 from cfde_atlas_etl.flows.publications import load_publications
+from cfde_atlas_etl.flows.refresh_inventory import refresh_inventory
 
 
 async def _safe(name: str, awaitable: Callable[[], Awaitable[Any]]) -> tuple[str, Any | Exception]:
@@ -118,6 +119,17 @@ async def load_all() -> dict[str, Any]:
     else:
         name, c2m2 = await _safe("c2m2", load_c2m2)
         results[name] = c2m2
+
+    # Inventory + README regen always run last so they reflect whatever did land.
+    name, inv = await _safe("data_inventory", refresh_inventory)
+    results[name] = inv
+    try:
+        from cfde_atlas_etl.scripts.regen_readme_stats import main as regen_readme
+
+        await regen_readme()
+        logger.info("README stats block regenerated")
+    except Exception as exc:
+        logger.warning("README regen failed: %s", exc)
 
     summary = {
         k: ("ok" if not isinstance(v, Exception) else f"failed: {type(v).__name__}")
