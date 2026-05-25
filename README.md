@@ -62,6 +62,12 @@ for f in migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 
 For the onclappc02 dev environment, the password lives in GSM (project `cdsci-infra`, secret `cfde-atlas-dev-db-password-onclappc02`) — see `.env.example` for the snippet.
 
+## Dataset Stats
+
+<!-- BEGIN STATS -->
+*Stats appear here after the first `flows.load_all` run. Regenerate manually with `uv run python -m cfde_atlas_etl.scripts.regen_readme_stats`.*
+<!-- END STATS -->
+
 ## Run
 
 Until a long-running Prefect server exists (filed as [#5](https://github.com/seandavi/cfde-atlas-etl/issues/5)), run flows directly:
