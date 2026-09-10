@@ -1,0 +1,373 @@
+{
+  "$defs": {
+    "ClusterBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "cluster": {
+          "title": "Cluster",
+          "type": "string"
+        },
+        "impact_category": {
+          "anyOf": [
+            {
+              "enum": [
+                "Awardee",
+                "User",
+                "Broader.Influence"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Impact Category"
+        },
+        "papers": {
+          "title": "Papers",
+          "type": "integer"
+        },
+        "papers_excl_preprints": {
+          "title": "Papers Excl Preprints",
+          "type": "integer"
+        },
+        "pmids": {
+          "title": "Pmids",
+          "type": "integer"
+        },
+        "query_count": {
+          "title": "Query Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cluster",
+        "papers",
+        "papers_excl_preprints",
+        "pmids",
+        "query_count"
+      ],
+      "title": "ClusterBlock",
+      "type": "object"
+    },
+    "JournalBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "journal": {
+          "title": "Journal",
+          "type": "string"
+        },
+        "papers": {
+          "title": "Papers",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "journal",
+        "papers"
+      ],
+      "title": "JournalBlock",
+      "type": "object"
+    },
+    "OverridesBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "by_tier": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "By Tier",
+          "type": "object"
+        }
+      },
+      "required": [
+        "count",
+        "by_tier"
+      ],
+      "title": "OverridesBlock",
+      "type": "object"
+    },
+    "RcrBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "title": "N",
+          "type": "integer"
+        },
+        "median": {
+          "title": "Median",
+          "type": "number"
+        },
+        "q1": {
+          "title": "Q1",
+          "type": "number"
+        },
+        "q3": {
+          "title": "Q3",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "n",
+        "median",
+        "q1",
+        "q3",
+        "max"
+      ],
+      "title": "RcrBlock",
+      "type": "object"
+    },
+    "RunBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "program": {
+          "title": "Program",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "program_yaml_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Program Yaml Sha"
+        },
+        "date_window": {
+          "description": "[first_year, last_year] inclusive; null = unbounded",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "title": "Date Window",
+          "type": "array"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "query_count": {
+          "title": "Query Count",
+          "type": "integer"
+        },
+        "hit_count": {
+          "title": "Hit Count",
+          "type": "integer"
+        },
+        "unique_pmids": {
+          "title": "Unique Pmids",
+          "type": "integer"
+        },
+        "preprint_hits": {
+          "title": "Preprint Hits",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "program",
+        "display_name",
+        "date_window",
+        "started_at",
+        "query_count",
+        "hit_count",
+        "unique_pmids",
+        "preprint_hits"
+      ],
+      "title": "RunBlock",
+      "type": "object"
+    },
+    "TierBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "enum": [
+            "Awardee",
+            "User",
+            "Broader.Influence"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "papers": {
+          "title": "Papers",
+          "type": "integer"
+        },
+        "papers_excl_preprints": {
+          "title": "Papers Excl Preprints",
+          "type": "integer"
+        },
+        "pmids": {
+          "title": "Pmids",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tier",
+        "papers",
+        "papers_excl_preprints",
+        "pmids"
+      ],
+      "title": "TierBlock",
+      "type": "object"
+    },
+    "YearBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "year": {
+          "title": "Year",
+          "type": "integer"
+        },
+        "Awardee": {
+          "default": 0,
+          "title": "Awardee",
+          "type": "integer"
+        },
+        "User": {
+          "default": 0,
+          "title": "User",
+          "type": "integer"
+        },
+        "Broader.Influence": {
+          "default": 0,
+          "title": "Broader.Influence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year"
+      ],
+      "title": "YearBlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "run": {
+      "$ref": "#/$defs/RunBlock"
+    },
+    "tiers": {
+      "items": {
+        "$ref": "#/$defs/TierBlock"
+      },
+      "title": "Tiers",
+      "type": "array"
+    },
+    "clusters": {
+      "items": {
+        "$ref": "#/$defs/ClusterBlock"
+      },
+      "title": "Clusters",
+      "type": "array"
+    },
+    "by_year": {
+      "description": "Paper counts per year per final tier, preprints excluded",
+      "items": {
+        "$ref": "#/$defs/YearBlock"
+      },
+      "title": "By Year",
+      "type": "array"
+    },
+    "top_journals": {
+      "description": "Top 15 journals among matrix papers joined to analytics.publications",
+      "items": {
+        "$ref": "#/$defs/JournalBlock"
+      },
+      "title": "Top Journals",
+      "type": "array"
+    },
+    "rcr": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RcrBlock"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "relative_citation_ratio distribution over joined papers; null if none"
+    },
+    "overrides": {
+      "$ref": "#/$defs/OverridesBlock"
+    },
+    "notes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run",
+    "tiers",
+    "clusters",
+    "by_year",
+    "top_journals",
+    "rcr",
+    "overrides",
+    "notes"
+  ],
+  "title": "PubsearchSummary",
+  "type": "object"
+}
