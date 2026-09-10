@@ -27,8 +27,8 @@ OTHER_SHEETS = ("Term_Glossary", "Field_lookup", "Example", "User_Guide")
 @pytest.fixture
 def template(tmp_path: Path) -> Path:
     wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Script_Input"
+    wb.remove(wb.worksheets[0])  # wb.active is Optional; build every sheet explicitly
+    ws = wb.create_sheet("Script_Input")
     ws.append(TEMPLATE_COLUMNS)
     ws.add_table(Table(displayName="Table2", ref="A1:K1"))
     dv = DataValidation(type="list", formula1=FIELD_SEARCH_FORMULA, allow_blank=True)
