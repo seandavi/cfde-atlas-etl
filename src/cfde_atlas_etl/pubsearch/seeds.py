@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, LiteralString
 from urllib.parse import urlsplit
 
 import psycopg
@@ -174,7 +174,7 @@ def curated_rows(cfg: ProgramConfig) -> list[SeedRow]:
 
 # --- SQL ---------------------------------------------------------------------------
 
-_SQL: dict[str, str] = {
+_SQL: dict[str, LiteralString] = {
     "grants": (
         "SELECT core_project_number, activity_code FROM analytics.core_projects "
         "ORDER BY activity_code, core_project_number"
