@@ -37,6 +37,7 @@ SECTION_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"^analytics\.c2m2_"), "c2m2"),
     (re.compile(r"^analytics\.github"), "github"),
     (re.compile(r"^analytics\.ga"), "ga"),
+    (re.compile(r"^analytics\.pubsearch_"), "pubsearch"),
     (re.compile(r"^analytics\.data_inventory$"), "infra"),
     (re.compile(r"^c2m2\."), "c2m2"),
     (re.compile(r"^raw\."), "raw"),
