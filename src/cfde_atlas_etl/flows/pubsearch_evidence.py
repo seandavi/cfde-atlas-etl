@@ -9,6 +9,7 @@ See docs/pubsearch/SPEC.md and pubsearch/evidence.py.
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 import httpx
@@ -20,7 +21,8 @@ from cfde_atlas_etl.pubsearch.evidence import evidence_for
 from cfde_atlas_etl.sinks.epmc_evidence import upsert_evidence
 from cfde_atlas_etl.sources.epmc import full_text_xml
 
-CACHE_DIR = Path("raw/epmc_fulltext")
+# Override with EPMC_FULLTEXT_CACHE when the repo disk is tight (JATS XML is ~100 KB-1 MB each).
+CACHE_DIR = Path(os.environ.get("EPMC_FULLTEXT_CACHE") or Path("raw/epmc_fulltext"))
 CONCURRENCY = 4
 PAUSE_SECONDS = 0.25
 
@@ -38,6 +40,7 @@ async def load_hits(run_id: str) -> list[Hit]:
             "SELECT h.pmid, h.pmcid, h.query_no, q.search_terms, q.search_field "
             "FROM raw.epmc_hits h JOIN raw.epmc_queries q USING (run_id, query_no) "
             "WHERE h.run_id = %s AND h.pmcid IS NOT NULL AND h.pmid IS NOT NULL "
+            "AND q.search_field <> 'Cites' "  # cites terms never yield a sentence; skip the fetch
             "ORDER BY h.pmcid, h.query_no",
             (run_id,),
         )
