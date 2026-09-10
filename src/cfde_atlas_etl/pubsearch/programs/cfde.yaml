@@ -1,0 +1,57 @@
+# Curated seed config for one Common Fund program. Loaded by pubsearch/seeds.py
+# (`load_program`) and validated as `ProgramConfig`. The only hand-typed input in the pipeline.
+#
+# Schema
+#   program:               short id; must equal this file's basename
+#   display_name:          human name
+#   date_window:           [first_year, last_year], informational only — the Eval team's
+#                          script applies FIRST_PDATE itself
+#   seed_kinds:            which generators run, any of
+#                            grants       Awardee   analytics.core_projects  -> *<serial>
+#                            cites        Broader   analytics.publications   -> <pmid>_med, field Cites
+#                            accessions   User      c2m2.file dbGaP ids, needs accession_namespaces
+#                            dcc_domains  User      c2m2.dcc urls, needs dcc_abbreviations
+#                            drc_urls     User      analytics.drc_code urls, needs drc_url_contains
+#                            curated      rows from `curated:` below, verbatim
+#   accession_namespaces:  c2m2.file.id_namespace values to include (accessions)
+#   dcc_abbreviations:     c2m2.dcc.dcc_abbreviation values to include (dcc_domains)
+#   drc_url_contains:      case-insensitive substrings; a drc_code url must match one (drc_urls)
+#   curated:               list of Script_Input rows. Keys mirror SeedRow:
+#                            impact_category  Awardee | User | Broader.Influence
+#                            query_cluster    free text, groups queries in the output
+#                            search_terms     the term; emitted bare — the Eval team's script
+#                                             adds quoting. Set `quote: true` on a row to wrap
+#                                             terms containing a space or dot in double quotes.
+#                            search_field     one of models.SEARCH_FIELDS ('' = everywhere)
+#                            or_terms / or_search_field, and_terms / and_search_field,
+#                            not_terms / not_search_field   optional qualifiers
+#
+program: cfde
+display_name: Common Fund Data Ecosystem
+date_window: [2019, 2026]  # informational; the Eval team's script applies FIRST_PDATE
+seed_kinds: [grants, cites, drc_urls, curated]  # no accessions/dcc_domains: those belong to the DCC programs, not CFDE
+drc_url_contains: ["cfde", "playbook-workflow-builder", "nih-cfde"]
+
+# No White_paper cites row yet: the CFDE overview paper ("The Common Fund Data Ecosystem
+# (CFDE)", 2026) is still a preprint in Europe PMC with no PMID.
+#
+# Europe PMC hit counts on 2026-09-10, for calibration:
+#   "Common Fund Data Ecosystem" 101 | CFDE 153 | "CFDE" AND "Common Fund" 84
+#   "C2M2" 71 (needs the AND qualifier) | "Data Distillery" 11 | "Playbook Workflow Builder" 6
+curated:
+  - {impact_category: User, query_cluster: Program_Name, search_terms: "Common Fund Data Ecosystem", search_field: Methods}
+  - {impact_category: User, query_cluster: Program_Name, search_terms: "Common Fund Data Ecosystem", search_field: "Acknowledgement & Funding"}
+  - {impact_category: Broader.Influence, query_cluster: Program_Name, search_terms: "Common Fund Data Ecosystem", search_field: "Title and Abstract"}
+  - {impact_category: Broader.Influence, query_cluster: Program_Name, search_terms: "Common Fund Data Ecosystem", search_field: Introduction}
+  - {impact_category: Broader.Influence, query_cluster: Program_Name, search_terms: "Common Fund Data Ecosystem", search_field: ""}
+  - {impact_category: User, query_cluster: Program_Name, search_terms: CFDE, search_field: Methods, and_terms: "Common Fund", and_search_field: ""}
+  - {impact_category: Broader.Influence, query_cluster: Program_Name, search_terms: CFDE, search_field: "", and_terms: "Common Fund", and_search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "cfde.cloud", search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "info.cfde.cloud", search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "data.cfde.cloud", search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "Playbook Workflow Builder", search_field: Methods}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "playbook-workflow-builder.cloud", search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "Crosscut Metadata Model, C2M2", search_field: Methods, and_terms: "Common Fund", and_search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "Data Distillery", search_field: Methods, and_terms: "Common Fund", and_search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "CFDE Workbench", search_field: ""}
+  - {impact_category: User, query_cluster: Data_Resource_Identifier, search_terms: "github.com/nih-cfde", search_field: ""}
