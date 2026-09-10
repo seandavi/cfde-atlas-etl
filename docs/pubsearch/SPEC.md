@@ -57,7 +57,11 @@ run timestamp; a run is reproducible from `(program_yaml_sha, run_id)`.
 - `raw.pubsearch_overrides (program, pmid, tier CHECK IN (Awardee, User, Broader.Influence,
   Exclude), reason, decided_by, decided_at; PK (program, pmid))` — analyst overrides from the
   review queue, not tied to a run, respected by the views; `Exclude` removes a paper.
-- `analytics.pubsearch_runs`, `analytics.pubsearch_matrix` (one row per (program, pmid): awardee/user/broader flags, final_assignment, evidence), `analytics.pubsearch_summary` (per program/run: tier counts, per-cluster counts)
+Analytics views land in `migrations/0034_create_analytics_pubsearch.sql`:
+
+- `analytics.pubsearch_runs` — one row per run with query, hit, unique-pmid and preprint counts.
+- `analytics.pubsearch_matrix` — one row per (run_id, program, paper): awardee/user/broader flags, computed and final assignment (overrides applied, `Exclude` dropped), clusters, query numbers, evidence. The PPST `Data_Matrixed_*` shape.
+- `analytics.pubsearch_summary` — per (run_id, program) counts by tier (`level = 'tier'`) and by query cluster (`level = 'cluster'`), with and without preprints. The PPST Summary sheet.
 
 Column comments are part of the contract (they drive `describe_table` in cfde-atlas).
 
