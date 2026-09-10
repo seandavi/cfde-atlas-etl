@@ -13,3 +13,6 @@ wheels/
 .env
 .env.local
 .env.*.local
+
+# Europe PMC full-text cache written by flows.pubsearch_evidence
+raw/epmc_fulltext/
