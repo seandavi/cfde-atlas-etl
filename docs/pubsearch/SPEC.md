@@ -39,10 +39,24 @@ Every seed row records its provenance (source table or `curated`).
 
 ### Tables
 
-- `raw.epmc_queries (run_id, query_no, program, tier, cluster, term, section, epmc_query, hit_count, fetched_at)`
-- `raw.epmc_hits (run_id, query_no, pmid, pmcid, source, pub_year, is_open_access)`
-- `raw.epmc_evidence (run_id, pmid, query_no, section, sentence)` — from per-PMCID fullTextXML, candidates only
-- `raw.pubsearch_overrides (program, pmid, tier, reason, decided_by, decided_at)` — analyst overrides, respected by views
+Raw tables land in `migrations/0033_create_raw_epmc.sql`. `run_id` = program yaml git sha +
+run timestamp; a run is reproducible from `(program_yaml_sha, run_id)`.
+
+- `raw.epmc_runs (run_id PK, program, program_yaml_sha, date_window_start, date_window_end,
+  started_at, finished_at, notes)` — written by `flows.pubsearch_run`.
+- `raw.epmc_queries (run_id FK, query_no, program, impact_category, query_cluster, search_terms,
+  search_field, or_terms, or_search_field, and_terms, and_search_field, not_terms,
+  not_search_field, notes, epmc_query, hit_count, fetched_at; PK (run_id, query_no))` — the
+  PPST `Script_Input` columns plus the rendered Europe PMC query and its hit count.
+- `raw.epmc_hits (run_id, query_no, epmc_id, source, pmid, pmcid, pub_year, is_open_access,
+  title, fetched_at; PK (run_id, query_no, source, epmc_id); FK (run_id, query_no); index
+  (run_id, pmid))` — one row per (query, record); preprints are `source = 'PPR'` with no pmid.
+- `raw.epmc_evidence (run_id, pmid, query_no, section, sentence, fetched_at;
+  PK (run_id, pmid, query_no, section))` — written by `flows.pubsearch_evidence` from
+  per-PMCID fullTextXML, candidates only.
+- `raw.pubsearch_overrides (program, pmid, tier CHECK IN (Awardee, User, Broader.Influence,
+  Exclude), reason, decided_by, decided_at; PK (program, pmid))` — analyst overrides from the
+  review queue, not tied to a run, respected by the views; `Exclude` removes a paper.
 - `analytics.pubsearch_runs`, `analytics.pubsearch_matrix` (one row per (program, pmid): awardee/user/broader flags, final_assignment, evidence), `analytics.pubsearch_summary` (per program/run: tier counts, per-cluster counts)
 
 Column comments are part of the contract (they drive `describe_table` in cfde-atlas).
