@@ -8,6 +8,8 @@
 #                          script applies FIRST_PDATE itself
 #   seed_kinds:            which generators run, any of
 #                            grants       Awardee   analytics.core_projects  -> *<serial>
+#                            grant_titles User      analytics.core_projects titles -> resource-name
+#                                                   phrases + acronyms, needs grant_title_activity_codes
 #                            cites        Broader   analytics.publications   -> <pmid>_med, field Cites
 #                            accessions   User      c2m2.file dbGaP ids, needs accession_namespaces
 #                            dcc_domains  User      c2m2.dcc urls, needs dcc_abbreviations
@@ -16,6 +18,7 @@
 #   accession_namespaces:  c2m2.file.id_namespace values to include (accessions)
 #   dcc_abbreviations:     c2m2.dcc.dcc_abbreviation values to include (dcc_domains)
 #   drc_url_contains:      case-insensitive substrings; a drc_code url must match one (drc_urls)
+#   grant_title_activity_codes: activity codes whose award titles name resources (grant_titles)
 #   curated:               list of Script_Input rows. Keys mirror SeedRow:
 #                            impact_category  Awardee | User | Broader.Influence
 #                            query_cluster    free text, groups queries in the output
@@ -29,8 +32,9 @@
 program: cfde
 display_name: Common Fund Data Ecosystem
 date_window: [2019, 2026]  # informational; the Eval team's script applies FIRST_PDATE
-seed_kinds: [grants, cites, drc_urls, curated]  # no accessions/dcc_domains: those belong to the DCC programs, not CFDE
+seed_kinds: [grants, cites, drc_urls, curated, grant_titles]  # no accessions/dcc_domains: those belong to the DCC programs, not CFDE
 drc_url_contains: ["cfde", "playbook-workflow-builder", "nih-cfde"]
+grant_title_activity_codes: [OT2, U24, U54]   # not R03 (research projects) or R25 (courses)
 
 # No White_paper cites row yet: the CFDE overview paper ("The Common Fund Data Ecosystem
 # (CFDE)", 2026) is still a preprint in Europe PMC with no PMID.

@@ -21,10 +21,14 @@ from cfde_atlas_etl.pubsearch.models import ImpactCategory, SeedRow
 
 PROGRAMS_DIR = Path(__file__).parent / "programs"
 
-SeedKind = Literal["grants", "cites", "accessions", "dcc_domains", "drc_urls", "curated"]
+SeedKind = Literal[
+    "grants", "grant_titles", "cites", "accessions", "dcc_domains", "drc_urls", "curated"
+]
 
 _TIER_RANK: dict[str, int] = {"Awardee": 0, "User": 1, "Broader.Influence": 2}
 _TEMPLATE_SEGMENT = re.compile(r"[{<]")
+_ACRONYM = re.compile(r"\(([A-Z][A-Za-z0-9-]{2,})\)")
+_MAX_TITLE_WORDS = 8
 
 
 class CuratedRow(BaseModel):
@@ -62,6 +66,7 @@ class ProgramConfig(BaseModel):
     accession_namespaces: list[str] = []
     dcc_abbreviations: list[str] = []
     drc_url_contains: list[str] = []
+    grant_title_activity_codes: list[str] = []
     curated: list[CuratedRow] = []
 
 
@@ -102,6 +107,20 @@ def accession(study_id: str) -> str:
     return study_id.strip().split(".", 1)[0]
 
 
+def title_phrases(title: str) -> list[str]:
+    """Resource-name candidates from an award title: the head before ':' (if short) plus
+    any parenthesised acronyms. 'The Common Fund Knowledge Center (CFKC): providing ...'
+    -> ['Common Fund Knowledge Center', 'CFKC']. Long, colon-less titles yield only acronyms.
+    """
+    acronyms = _ACRONYM.findall(title)
+    head = title.split(":", 1)[0]
+    head = _ACRONYM.sub("", head)
+    head = re.sub(r"^\s*(?:[A-Z]\d{2}-\s*)?(?:The\s+)?", "", head.strip(' "'))
+    head = re.sub(r"\s+", " ", head).strip(' "-,.')
+    phrases = [head] if head and len(head.split()) <= _MAX_TITLE_WORDS else []
+    return list(dict.fromkeys(phrases + acronyms))
+
+
 def order_rows(rows: list[SeedRow]) -> list[SeedRow]:
     """Dedupe, then Awardee (grouped by cluster) -> User -> Broader.Influence, source order kept."""
     unique = list(dict.fromkeys(rows))
@@ -122,6 +141,26 @@ def grant_rows(fetched: list[tuple[str, str]]) -> list[SeedRow]:
         SeedRow("Awardee", code, grant_serial(cpn, code), notes="analytics.core_projects")
         for cpn, code in fetched
     ]
+
+
+def grant_title_rows(fetched: list[tuple[str, str]], codes: list[str]) -> list[SeedRow]:
+    """User-tier resource-name rows mined from award titles; acronyms get an AND qualifier."""
+    rows = []
+    for cpn, title in fetched:
+        for phrase in title_phrases(title):
+            is_acronym = phrase.isupper() or (phrase.isalnum() and len(phrase.split()) == 1)
+            for field in ("Methods", "Acknowledgement & Funding"):
+                rows.append(
+                    SeedRow(
+                        "User",
+                        "Grant_Title",
+                        phrase,
+                        field,
+                        and_terms="Common Fund" if is_acronym else "",
+                        notes=f"analytics.core_projects title of {cpn}; trim or delete",
+                    )
+                )
+    return rows
 
 
 def cites_rows(fetched: list[tuple[int | str]]) -> list[SeedRow]:
@@ -179,6 +218,10 @@ _SQL: dict[str, LiteralString] = {
         "SELECT core_project_number, activity_code FROM analytics.core_projects "
         "ORDER BY activity_code, core_project_number"
     ),
+    "grant_titles": (
+        "SELECT core_project_number, core_project_title FROM analytics.core_projects "
+        "WHERE activity_code = ANY(%s) ORDER BY core_project_number"
+    ),
     "cites": "SELECT DISTINCT pmid FROM analytics.publications ORDER BY pmid",
     "accessions": (
         "SELECT DISTINCT dbgap_study_id FROM c2m2.file "
@@ -200,6 +243,7 @@ async def build_seeds(program: str) -> list[SeedRow]:
     params: dict[str, tuple] = {
         "accessions": (cfg.accession_namespaces,),
         "dcc_domains": (cfg.dcc_abbreviations,),
+        "grant_titles": (cfg.grant_title_activity_codes,),
     }
     rows: list[SeedRow] = []
     async with (
@@ -214,6 +258,8 @@ async def build_seeds(program: str) -> list[SeedRow]:
             fetched = await cur.fetchall()
             if kind == "grants":
                 rows += grant_rows(fetched)
+            elif kind == "grant_titles":
+                rows += grant_title_rows(fetched, cfg.grant_title_activity_codes)
             elif kind == "cites":
                 rows += cites_rows(fetched)
             elif kind == "accessions":
