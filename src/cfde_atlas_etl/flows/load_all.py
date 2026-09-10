@@ -22,7 +22,9 @@ a per-flow status dict so the operator can see what succeeded.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Awaitable, Callable
+from functools import partial
 from typing import Any
 
 from prefect import flow, get_run_logger
@@ -38,6 +40,7 @@ from cfde_atlas_etl.flows.journals import load_journals
 from cfde_atlas_etl.flows.opportunities import load_opportunities
 from cfde_atlas_etl.flows.projects import load_projects
 from cfde_atlas_etl.flows.publications import load_publications
+from cfde_atlas_etl.flows.pubsearch_run import pubsearch_run
 from cfde_atlas_etl.flows.refresh_inventory import refresh_inventory
 
 
@@ -119,6 +122,11 @@ async def load_all() -> dict[str, Any]:
     else:
         name, c2m2 = await _safe("c2m2", load_c2m2)
         results[name] = c2m2
+
+    # Opt-in: PUBSEARCH_PROGRAMS=cfde,kf runs the Europe PMC search per program (#58).
+    for program in filter(None, os.environ.get("PUBSEARCH_PROGRAMS", "").split(",")):
+        name, ps = await _safe(f"pubsearch_{program}", partial(pubsearch_run, program))
+        results[name] = ps
 
     # Inventory + README regen always run last so they reflect whatever did land.
     name, inv = await _safe("data_inventory", refresh_inventory)
