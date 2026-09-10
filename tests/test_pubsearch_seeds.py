@@ -17,9 +17,11 @@ from cfde_atlas_etl.pubsearch.seeds import (
     drc_url_rows,
     grant_rows,
     grant_serial,
+    grant_title_rows,
     load_program,
     order_rows,
     quote_term,
+    title_phrases,
     url_host_path,
 )
 
@@ -134,3 +136,35 @@ def test_cfde_yaml_validates() -> None:
     rows = curated_rows(cfg)
     assert rows and all(r.search_field in SEARCH_FIELDS for r in rows)
     assert all(r.notes == "curated:programs/cfde.yaml" for r in rows)
+
+
+def test_title_phrases() -> None:
+    assert title_phrases("The Common Fund Knowledge Center (CFKC): providing validated x") == [
+        "Common Fund Knowledge Center",
+        "CFKC",
+    ]
+    assert title_phrases("The CFDE Cloud Workspace") == ["CFDE Cloud Workspace"]
+    assert title_phrases("Biomedical Data Commons Workbench (BDCW)") == [
+        "Biomedical Data Commons Workbench",
+        "BDCW",
+    ]
+    assert (
+        title_phrases(
+            "U24-Uncovering the Shared Genetic Origins of Childhood Cancer and Birth Defects"
+        )
+        == []
+    )
+    assert title_phrases("Kids First Data Resource Center (KFDRC): Harnessing Data") == [
+        "Kids First Data Resource Center",
+        "KFDRC",
+    ]
+
+
+def test_grant_title_rows_acronym_gets_qualifier() -> None:
+    rows = grant_title_rows(
+        [("OT2OD036440", "The Common Fund Knowledge Center (CFKC): x")], ["OT2"]
+    )
+    assert [r.search_terms for r in rows] == ["Common Fund Knowledge Center"] * 2 + ["CFKC"] * 2
+    assert {r.search_field for r in rows} == {"Methods", "Acknowledgement & Funding"}
+    assert [r.and_terms for r in rows] == ["", "", "Common Fund", "Common Fund"]
+    assert all(r.impact_category == "User" and "OT2OD036440" in r.notes for r in rows)
