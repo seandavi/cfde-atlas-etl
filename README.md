@@ -46,7 +46,27 @@ To add a new FOA or core project, edit `config.yaml` and open a PR. The diff is 
 | `flows.c2m2` | Latest C2M2 datapackage per DCC (from raw.drc_file); unzip + COPY each TSV; idempotent via `raw.c2m2_bundles` ledger | `c2m2.*` (50 tables) → `analytics.c2m2_summary` + `analytics.c2m2_file_format_mix` + `analytics.c2m2_assay_coverage` + `analytics.c2m2_anatomy_coverage` + `analytics.c2m2_disease_coverage` + `analytics.c2m2_subject_demographics` |
 | `flows.github` | GitHub REST search + per-repo detail (needs `GITHUB_TOKEN`) | `raw.github_*` → `analytics.github_repos` + `analytics.github_activity_weekly` + `analytics.github_contributors` |
 | `flows.ga` | GA4 Data API runReport per curated property (needs `GOOGLE_APPLICATION_CREDENTIALS`) | `raw.ga_properties` + `raw.ga_reports` → `analytics.ga_pageviews` + `analytics.ga_top_pages` + `analytics.ga_geo` + `analytics.ga_traffic_sources` + `analytics.ga_property_coverage` |
-| `flows.load_all` | Orchestrates everything above in dep order with safe per-flow isolation | — |
+| `flows.pubsearch_run` | Program seed table (RePORTER cores, `analytics.publications`, C2M2, DRC registry, award titles, `pubsearch/programs/<program>.yaml`) → Europe PMC REST | `raw.epmc_runs` + `raw.epmc_queries` + `raw.epmc_hits` → `analytics.pubsearch_runs` / `pubsearch_matrix` / `pubsearch_summary` (+ `pubsearch_current*` latest-run views) |
+| `flows.pubsearch_evidence` | Europe PMC `fullTextXML` for each non-Cites hit with a PMCID (disk cache `EPMC_FULLTEXT_CACHE`) | `raw.epmc_evidence` (exact-match sentence per hit; NULL = API hit not confirmed in text) |
+| `flows.load_all` | Orchestrates everything above in dep order with safe per-flow isolation; runs the pubsearch flows for `PUBSEARCH_PROGRAMS` (opt-in) | — |
+
+## Publication impact tiers (pubsearch)
+
+A reproducible version of the NIH Common Fund Eval team's PPST publication search: Europe PMC keyword queries classify papers as **Awardee** (program grant number in funding), **User** (program resource named in Methods / Acknowledgements), or **Broader Influence** (cites an awardee paper, or names the program elsewhere), highest tier wins; analyst overrides in `raw.pubsearch_overrides` are respected by the views. Spec and data contract: [`docs/pubsearch/SPEC.md`](docs/pubsearch/SPEC.md). Background analysis (Kids First comparison, query provenance) lives in `seandavi/cfde-atlas` under `coc-prep/`.
+
+```bash
+set -a; . ./.env; set +a; export PREFECT_API_URL= PREFECT_SERVER_ALLOW_EPHEMERAL_MODE=true
+# 1. Fill the Eval team's blank Script_Input template for a program (hand it to the program officer)
+uv run python -m cfde_atlas_etl.pubsearch.build_input --program cfde --template "$PPST_TEMPLATE_PATH"
+# 2. Run the search (~10 min for CFDE's ~570 queries), then the evidence pass
+uv run python -m cfde_atlas_etl.flows.pubsearch_run --program cfde          # prints run_id
+uv run python -m cfde_atlas_etl.flows.pubsearch_evidence --run-id <run_id>
+# 3. Exports: PPST-shaped output workbook and the summary JSON the atlas report page reads
+uv run python -m cfde_atlas_etl.pubsearch.export_output --run-id <run_id> --out cfde_PPST_output.xlsx
+uv run python -m cfde_atlas_etl.pubsearch.summary_json --run-id <run_id> --out cfde_summary.json
+```
+
+The only hand-typed input is `src/cfde_atlas_etl/pubsearch/programs/<program>.yaml` (name variants, disambiguators, resource URLs, and `grant_title_exclude` — the trim step for award-title-mined terms; run the pipeline only on a trimmed list). Counts to report are `paper_count_excl_preprints`; never sum Broader Influence with the other tiers. Awardee here (Europe PMC grant-number search) and `analytics.publications` (RePORTER linkage) overlap but neither contains the other.
 
 The publications source acknowledges multiple grants per paper, so the raw key in `raw.reporter_publications` is `(pmid, core_project_number)`. The analytics view JOINs `raw.icite` onto it for title/journal/RCR/citation enrichment.
 
@@ -56,7 +76,7 @@ Requires `uv`, `psql`, and a reachable Postgres.
 
 ```bash
 uv sync --extra dev
-cp .env.example .env   # then fill in DATABASE_URL
+cp .env.example .env   # then fill in DATABASE_URL (and, for pubsearch, PPST_TEMPLATE_PATH / EPMC_FULLTEXT_CACHE)
 for f in migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 ```
 
@@ -250,7 +270,7 @@ psql "$DATABASE_URL" -c "SELECT count(*), max(data_refreshed_at) FROM analytics.
 
 ## Postgres backend
 
-Lives on `pg_ducklake_18` (plain Postgres 18) on `onclappc02`. Specifically NOT `pg_duckdb_18` — pg_duckdb's planner hooks interfere with the LLM-driven query path in cfde-atlas. See `monode/infrastructure/compose/cfde_atlas/` for the production wiring.
+Lives in the shared `pg_main` container (Postgres 18 with pg_duckdb installed) on `onclappc02`, database `cfde_atlas_dev`. The atlas's LLM-driven query path avoids pg_duckdb's planner hooks by not loading the extension in this database. See `monode/infrastructure/compose/cfde_atlas/` for the production wiring.
 
 ## Adding a new flow
 
