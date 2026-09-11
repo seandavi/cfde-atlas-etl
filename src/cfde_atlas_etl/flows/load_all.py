@@ -40,6 +40,7 @@ from cfde_atlas_etl.flows.journals import load_journals
 from cfde_atlas_etl.flows.opportunities import load_opportunities
 from cfde_atlas_etl.flows.projects import load_projects
 from cfde_atlas_etl.flows.publications import load_publications
+from cfde_atlas_etl.flows.pubsearch_evidence import pubsearch_evidence
 from cfde_atlas_etl.flows.pubsearch_run import pubsearch_run
 from cfde_atlas_etl.flows.refresh_inventory import refresh_inventory
 
@@ -127,6 +128,11 @@ async def load_all() -> dict[str, Any]:
     for program in filter(None, os.environ.get("PUBSEARCH_PROGRAMS", "").split(",")):
         name, ps = await _safe(f"pubsearch_{program}", partial(pubsearch_run, program))
         results[name] = ps
+        if isinstance(ps, dict) and ps.get("run_id"):
+            name, ev = await _safe(
+                f"pubsearch_evidence_{program}", partial(pubsearch_evidence, ps["run_id"])
+            )
+            results[name] = ev
 
     # Inventory + README regen always run last so they reflect whatever did land.
     name, inv = await _safe("data_inventory", refresh_inventory)

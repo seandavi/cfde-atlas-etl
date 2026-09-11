@@ -226,7 +226,9 @@ For the onclappc02 dev environment, the password lives in GSM (project `cdsci-in
 
 ## Run
 
-Until a long-running Prefect server exists (filed as [#5](https://github.com/seandavi/cfde-atlas-etl/issues/5)), run flows directly:
+Scheduled: `systemd/cfde-atlas-etl-load.timer` runs `load_all` weekly (Sunday 03:00) with `PUBSEARCH_PROGRAMS=cfde`, alerting on failure to the shared `cdsci-lake-ops` ntfy topic via `ntfy-notify@.service` — the platform convention in `monode/infrastructure/SCHEDULING.md`. Install by copying (not symlinking) the units into `~/.config/systemd/user/`, then `systemctl --user daemon-reload && systemctl --user enable --now cfde-atlas-etl-load.timer`. Check with `systemctl --user list-timers cfde-atlas-etl-load.timer` and `journalctl --user -u cfde-atlas-etl-load.service`.
+
+To run by hand:
 
 ```bash
 export PREFECT_API_URL= PREFECT_SERVER_ALLOW_EPHEMERAL_MODE=true

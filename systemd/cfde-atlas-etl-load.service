@@ -1,0 +1,31 @@
+# Weekly full refresh of the cfde-atlas evaluation database, including the
+# Europe PMC publication-impact search (pubsearch) and its evidence pass.
+# An instance of monode/infrastructure's SCHEDULING.md convention; the
+# reference units are cdsci-lake/systemd/icite.{service,timer}.
+[Unit]
+Description=Weekly cfde-atlas-etl load_all (RePORTER, iCite, DRC, GitHub, C2M2, pubsearch)
+Documentation=https://github.com/seandavi/cfde-atlas-etl#run
+After=network-online.target
+Wants=network-online.target
+OnFailure=ntfy-notify@%N.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/davsean/Documents/git/cfde-atlas-etl
+EnvironmentFile=/home/davsean/Documents/git/cfde-atlas-etl/.env
+# Ephemeral in-process Prefect (README "Run"); no server wiring by decision 2026-09-10.
+Environment=PREFECT_API_URL=
+Environment=PREFECT_SERVER_ALLOW_EPHEMERAL_MODE=true
+# Opt-in pubsearch: run the Europe PMC search + evidence pass for these programs.
+Environment=PUBSEARCH_PROGRAMS=cfde
+# JATS XML cache off the 95%-full home filesystem.
+Environment=EPMC_FULLTEXT_CACHE=/data/davsean/epmc_fulltext
+# NOT `/usr/bin/env uv`: systemd --user PATH excludes ~/.local/bin (SCHEDULING.md).
+ExecStart=%h/.local/bin/uv run python -m cfde_atlas_etl.flows.load_all
+# 2026-09-10 manual run: ~95 min (C2M2 dominates) + ~10 min pubsearch + a few min
+# evidence. TimeoutStartSec, not RuntimeMaxSec (no-op on Type=oneshot). 4 h headroom.
+TimeoutStartSec=14400
+Nice=10
+
+[Install]
+WantedBy=default.target
