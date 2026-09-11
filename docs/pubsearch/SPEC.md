@@ -1,6 +1,6 @@
 # Publication impact tiers (PPST-compatible) — specification
 
-Status: accepted 2026-09-10. Background analysis lives in `seandavi/cfde-atlas` under
+Status: accepted 2026-09-10; all four milestones delivered 2026-09-10/11 (PRs #63-#79). Scheduled weekly via `systemd/cfde-atlas-etl-load.timer`. Background analysis lives in `seandavi/cfde-atlas` under
 `coc-prep/` (README, DESIGN-publication-search, DESIGN-eval-team-delivery,
 NOTE-query-provenance). This document is the contract the issues implement.
 
@@ -81,10 +81,12 @@ Column comments are part of the contract (they drive `describe_table` in cfde-at
 - Preprints are included and flagged (`source = PPR`); tier counts are reported with and
   without them.
 
-## Milestones
+## Milestones (all done)
 
 1. **Input workbook for CFDE** — generate the PPST `Script_Input` sheet from the seed table so
    the program officer can hand it to the Eval team.
 2. **Seeds and runner** — seed generation + Europe PMC query runner landing in `raw.epmc_*`.
 3. **Evidence and views** — full-text evidence pass, overrides table, analytics views.
 4. **Exports** — PPST-shaped output workbook and per-program summary JSON for the atlas.
+
+Delivered beyond the plan: `analytics.pubsearch_latest_run` / `pubsearch_current` / `pubsearch_current_summary` (latest finished non-smoke run per program, for the chat surface); `grant_titles` seed kind with `grant_title_exclude`; evidence pass skips Cites-only hits and caches XML at `EPMC_FULLTEXT_CACHE`. First CFDE run: Awardee 474, User 8, Broader Influence 8,861 PMIDs (preprints excluded).

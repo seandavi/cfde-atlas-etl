@@ -1,7 +1,7 @@
 [project]
 name = "cfde-atlas-etl"
 version = "0.1.0"
-description = "Prefect/Python ETL for CFDE evaluation data — sources from nih-cfde/icc-eval-core, loads Postgres for cfde-atlas."
+description = "Prefect/Python data pipeline for CFDE evaluation — RePORTER, iCite, DRC, GitHub, C2M2 loads plus the PPST-compatible Europe PMC publication-impact search (pubsearch); lands Postgres for cfde-atlas."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
