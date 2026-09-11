@@ -19,6 +19,7 @@
 #   dcc_abbreviations:     c2m2.dcc.dcc_abbreviation values to include (dcc_domains)
 #   drc_url_contains:      case-insensitive substrings; a drc_code url must match one (drc_urls)
 #   grant_title_activity_codes: activity codes whose award titles name resources (grant_titles)
+#   grant_title_exclude:   title-mined phrases to drop (case-insensitive); the human trim step
 #   curated:               list of Script_Input rows. Keys mirror SeedRow:
 #                            impact_category  Awardee | User | Broader.Influence
 #                            query_cluster    free text, groups queries in the output
@@ -35,6 +36,20 @@ date_window: [2019, 2026]  # informational; the Eval team's script applies FIRST
 seed_kinds: [grants, cites, drc_urls, curated, grant_titles]  # no accessions/dcc_domains: those belong to the DCC programs, not CFDE
 drc_url_contains: ["cfde", "playbook-workflow-builder", "nih-cfde"]
 grant_title_activity_codes: [OT2, U24, U54]   # not R03 (research projects) or R25 (courses)
+# Trimmed after the 2026-09-10 run: bare "CONNECT" (85 false User papers) and "Project-001"
+# (55) dominated the User tier; the rest are award-plan titles, not resource names. The Kids
+# First / MoTrPAC entries measure DCC use, not CFDE use, so they are out for the CFDE program
+# run (reverse this if the program officer wants DCC-resource users counted under CFDE).
+grant_title_exclude:
+  - CONNECT
+  - Project-001
+  - Cross-CFDE semantic and spatial interoperability for anatomy
+  - Fostering Meaningful Use of Common Fund Data
+  - GENOMIC INDEXING OF COMMON FUND DATASETS
+  - LINCS DCIC Engagement Plan with the CFDE
+  - Stanford MoTrPAC Bioinformatics Center - Baseline CFDE
+  - Kids First Data Resource Center
+  - KFDRC
 
 # No White_paper cites row yet: the CFDE overview paper ("The Common Fund Data Ecosystem
 # (CFDE)", 2026) is still a preprint in Europe PMC with no PMID.

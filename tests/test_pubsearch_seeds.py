@@ -168,3 +168,12 @@ def test_grant_title_rows_acronym_gets_qualifier() -> None:
     assert {r.search_field for r in rows} == {"Methods", "Acknowledgement & Funding"}
     assert [r.and_terms for r in rows] == ["", "", "Common Fund", "Common Fund"]
     assert all(r.impact_category == "User" and "OT2OD036440" in r.notes for r in rows)
+
+
+def test_grant_title_rows_exclude() -> None:
+    rows = grant_title_rows(
+        [("U54OD036472", "CONNECT: Collaborative Network"), ("OT2OD036440", "The CFDE Workbench")],
+        ["U54", "OT2"],
+        exclude=["connect"],
+    )
+    assert {r.search_terms for r in rows} == {"CFDE Workbench"}

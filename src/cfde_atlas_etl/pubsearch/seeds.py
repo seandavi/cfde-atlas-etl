@@ -67,6 +67,7 @@ class ProgramConfig(BaseModel):
     dcc_abbreviations: list[str] = []
     drc_url_contains: list[str] = []
     grant_title_activity_codes: list[str] = []
+    grant_title_exclude: list[str] = []
     curated: list[CuratedRow] = []
 
 
@@ -143,11 +144,21 @@ def grant_rows(fetched: list[tuple[str, str]]) -> list[SeedRow]:
     ]
 
 
-def grant_title_rows(fetched: list[tuple[str, str]], codes: list[str]) -> list[SeedRow]:
-    """User-tier resource-name rows mined from award titles; acronyms get an AND qualifier."""
+def grant_title_rows(
+    fetched: list[tuple[str, str]], codes: list[str], exclude: list[str] | None = None
+) -> list[SeedRow]:
+    """User-tier resource-name rows mined from award titles; acronyms get an AND qualifier.
+
+    `exclude` (case-insensitive phrases) drops title-mined terms that a human has judged
+    to be noise; the PPST input workbook still shows them so the reviewer can see what
+    was cut.
+    """
+    skip = {e.lower() for e in (exclude or [])}
     rows = []
     for cpn, title in fetched:
         for phrase in title_phrases(title):
+            if phrase.lower() in skip:
+                continue
             is_acronym = phrase.isupper() or (phrase.isalnum() and len(phrase.split()) == 1)
             for field in ("Methods", "Acknowledgement & Funding"):
                 rows.append(
@@ -259,7 +270,9 @@ async def build_seeds(program: str) -> list[SeedRow]:
             if kind == "grants":
                 rows += grant_rows(fetched)
             elif kind == "grant_titles":
-                rows += grant_title_rows(fetched, cfg.grant_title_activity_codes)
+                rows += grant_title_rows(
+                    fetched, cfg.grant_title_activity_codes, cfg.grant_title_exclude
+                )
             elif kind == "cites":
                 rows += cites_rows(fetched)
             elif kind == "accessions":
