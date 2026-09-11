@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly cfde-atlas-etl load_all (Sunday 03:00 local)
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00
+RandomizedDelaySec=600
+# Weekly is plenty for Council of Councils prep; a missed week is caught up on next boot.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
