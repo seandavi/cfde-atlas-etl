@@ -52,7 +52,7 @@ To add a new FOA or core project, edit `config.yaml` and open a PR. The diff is 
 
 ## Publication impact tiers (pubsearch)
 
-A reproducible version of the NIH Common Fund Eval team's PPST publication search: Europe PMC keyword queries classify papers as **Awardee** (program grant number in funding), **User** (program resource named in Methods / Acknowledgements), or **Broader Influence** (cites an awardee paper, or names the program elsewhere), highest tier wins; analyst overrides in `raw.pubsearch_overrides` are respected by the views. Spec and data contract: [`docs/pubsearch/SPEC.md`](docs/pubsearch/SPEC.md). Background analysis (Kids First comparison, query provenance) lives in `seandavi/cfde-atlas` under `coc-prep/`.
+A reproducible version of the NIH Common Fund Eval team's PPST publication search: Europe PMC keyword queries classify papers as **Awardee** (program grant number in funding), **User** (program resource named in Methods / Acknowledgements), or **Broader Influence** (cites an awardee paper, or names the program elsewhere), highest tier wins; analyst overrides in `raw.pubsearch_overrides` are respected by the views. Spec and data contract: [`docs/pubsearch/SPEC.md`](docs/pubsearch/SPEC.md). Background analysis (Kids First comparison, query provenance) and the run outputs sent to the CFDE program office live in the private repository `seandavi/2027-cfde-coc-prep` under `publications/` (moved from `seandavi/cfde-atlas` `coc-prep/` on 2026-10-08).
 
 ```bash
 set -a; . ./.env; set +a; export PREFECT_API_URL= PREFECT_SERVER_ALLOW_EPHEMERAL_MODE=true

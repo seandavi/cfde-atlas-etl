@@ -1,8 +1,9 @@
 # Publication impact tiers (PPST-compatible) — specification
 
-Status: accepted 2026-09-10; all four milestones delivered 2026-09-10/11 (PRs #63-#79). Scheduled weekly via `systemd/cfde-atlas-etl-load.timer`. Background analysis lives in `seandavi/cfde-atlas` under
-`coc-prep/` (README, DESIGN-publication-search, DESIGN-eval-team-delivery,
-NOTE-query-provenance). This document is the contract the issues implement.
+Status: accepted 2026-09-10; all four milestones delivered 2026-09-10/11 (PRs #63-#79). Scheduled weekly via `systemd/cfde-atlas-etl-load.timer`. Background analysis lives in the private repository
+`seandavi/2027-cfde-coc-prep` under `publications/` (README, notes/DESIGN-publication-search,
+notes/DESIGN-eval-team-delivery, notes/NOTE-query-provenance; moved from `seandavi/cfde-atlas`
+`coc-prep/` on 2026-10-08). This document is the contract the issues implement.
 
 ## Goal
 
